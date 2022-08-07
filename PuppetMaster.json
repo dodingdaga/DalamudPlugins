@@ -1,23 +1,25 @@
-{
-  "Author": "DodingDaga",
-  "Name": "Puppet Master",
-  "InternalName": "PuppetMaster",
-  "AssemblyVersion": "0.0.0.1",
-  "Description": "For the lulz",
-  "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
-  "Tags": [
-    "emote",
-    "plugin"
-  ],
-  "DalamudApiLevel": 6,
-  "LoadPriority": 0,
-  "Punchline": "Let others tell you what to do.",
-  "IsHide": false,
-  "IsTestingExclusive": false,
-  "DownloadCount": 0,
-  "LastUpdated": "1659247553",
-  "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
-  "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
-  "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip"
-}
+[
+  {
+    "Author": "DodingDaga",
+    "Name": "Puppet Master",
+    "InternalName": "PuppetMaster",
+    "AssemblyVersion": "0.0.0.1",
+    "Description": "For the lulz",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
+    "Tags": [
+      "emote",
+      "plugin"
+    ],
+    "DalamudApiLevel": 6,
+    "LoadPriority": 0,
+    "Punchline": "Let others tell you what to do.",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadCount": 0,
+    "LastUpdated": "1659247553",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip"
+  }
+]
