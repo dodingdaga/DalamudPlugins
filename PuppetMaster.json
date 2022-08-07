@@ -1,0 +1,16 @@
+{
+  "Author": "DodingDaga",
+  "Name": "Puppet Master",
+  "InternalName": "PuppetMaster",
+  "AssemblyVersion": "0.0.0.1",
+  "Description": "For the lulz",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "sample",
+    "plugin",
+    "goats"
+  ],
+  "DalamudApiLevel": 6,
+  "LoadPriority": 0,
+  "Punchline": "Let others tell you what to do."
+}
