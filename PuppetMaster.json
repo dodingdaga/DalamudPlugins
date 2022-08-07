@@ -5,10 +5,10 @@
   "AssemblyVersion": "0.0.0.1",
   "Description": "For the lulz",
   "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/dodingdaga/PuppetMaster",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "emote",
+    "plugin"
   ],
   "DalamudApiLevel": 6,
   "LoadPriority": 0,
