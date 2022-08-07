@@ -5,7 +5,7 @@
   "AssemblyVersion": "0.0.0.1",
   "Description": "For the lulz",
   "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/dodingdaga/PuppetMaster",
+  "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
   "Tags": [
     "emote",
     "plugin"
@@ -17,7 +17,7 @@
   "IsTestingExclusive": false,
   "DownloadCount": 0,
   "LastUpdated": "1659247553",
-  "DownloadLinkInstall": "https://github.com/dodingdaga/PuppetMaster/releases/download/v1/PuppetMaster.zip",
-  "DownloadLinkTesting": "https://github.com/dodingdaga/PuppetMaster/releases/download/v1/PuppetMaster.zip",
-  "DownloadLinkUpdate": "https://github.com/dodingdaga/PuppetMaster/releases/download/v1/PuppetMaster.zip"
+  "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
+  "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip",
+  "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1/PuppetMaster.zip"
 }
