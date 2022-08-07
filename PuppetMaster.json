@@ -12,5 +12,8 @@
   ],
   "DalamudApiLevel": 6,
   "LoadPriority": 0,
-  "Punchline": "Let others tell you what to do."
+  "Punchline": "Let others tell you what to do.",
+  "DownloadLinkInstall": "https://github.com/dodingdaga/PuppetMaster/releases/download/0.0.0.1/PuppetMaster.zip",
+  "DownloadLinkTesting": "https://github.com/dodingdaga/PuppetMaster/releases/download/0.0.0.1/PuppetMaster.zip",
+  "DownloadLinkUpdate": "https://github.com/dodingdaga/PuppetMaster/releases/download/0.0.0.1/PuppetMaster.zip"
 }
