@@ -1,7 +1,7 @@
 
 [
   {
-    "Author": "DodingDaga",
+    "Author": "akira0245, DodingDaga",
     "Name": "MidiBard",
     "InternalName": "MidiBard",
     "AssemblyVersion": "1.12.6.2",
@@ -20,7 +20,7 @@
     "DalamudApiLevel": 7,
     "LoadPriority": 0,
     "IconUrl": "https://i.loli.net/2021/09/09/L1fkrwElUKYMtN3.png",
-    "Punchline": "Bard performance using midi files or keyboard.",
+    "Punchline": "Bard performance using midi files or keyboard. -QUICK UPDATE FOR 6.2 compatibility. USE AT YOUR OWN RISK",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
