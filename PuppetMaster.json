@@ -3,7 +3,7 @@
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "0.1.5.1",
+    "AssemblyVersion": "0.1.5.2",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -17,9 +17,9 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1659251555",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.1/PuppetMaster.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.1/PuppetMaster.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.1/PuppetMaster.zip"
+    "LastUpdated": "1659252555",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.2/PuppetMaster.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.2/PuppetMaster.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.5.2/PuppetMaster.zip"
   }
 ]
