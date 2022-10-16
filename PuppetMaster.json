@@ -32,10 +32,7 @@
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
     "Tags": [
       "plugin",
-      "dodingdaga",
-      "copycat",
-      "emote",
-      "react"
+      "emote"
     ],
     "DalamudApiLevel": 7,
     "LoadPriority": 0,
