@@ -21,5 +21,31 @@
     "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v.1.6.5/PuppetMaster.zip",
     "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v.1.6.5/PuppetMaster.zip",
     "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v.1.6.5/PuppetMaster.zip"
+  },
+  {
+    "Author": "DodingDaga",
+    "Name": "Right Back At You",
+    "InternalName": "rbay",
+    "AssemblyVersion": "6.2.51.0",
+    "Description": "For the lulz",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
+    "Tags": [
+      "plugin",
+      "dodingdaga",
+      "copycat",
+      "emote",
+      "react"
+    ],
+    "DalamudApiLevel": 7,
+    "LoadPriority": 0,
+    "Punchline": "Nothing but a second-rate, trying hard, copycat!",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadCount": 0,
+    "LastUpdated": "1659261000",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.2.51.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.2.51.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.2.51.0/latest.zip"
   }
 ]
