@@ -3,7 +3,7 @@
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "0.1.6.6",
+    "AssemblyVersion": "0.1.6.7",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -17,11 +17,11 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1659261000",
-    "Changelog": "API7, .NET 6.0.\nAdded support for Regex trigger phrase",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.6/PuppetMaster.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.6/PuppetMaster.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.6/PuppetMaster.zip"
+    "LastUpdated": "1659261001",
+    "Changelog": "API7, .NET 6.0.\nFurther customization options for regex",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip"
   },
   {
     "Author": "DodingDaga",
