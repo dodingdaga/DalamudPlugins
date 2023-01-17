@@ -3,7 +3,7 @@
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "0.1.6.7",
+    "AssemblyVersion": "6.3.0.0",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -11,17 +11,17 @@
       "emote",
       "plugin"
     ],
-    "DalamudApiLevel": 7,
+    "DalamudApiLevel": 8,
     "LoadPriority": 0,
     "Punchline": "Let others tell you what to do.",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1659261001",
-    "Changelog": "API7, .NET 6.0.\nFurther customization options for regex",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/v1.6.7/PuppetMaster.zip"
+    "LastUpdated": "1659262000",
+    "Changelog": "API8, .NET 7.0.\nAPI update",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.3.0.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.3.0.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.3.0.0/latest.zip"
   },
   {
     "Author": "DodingDaga",
