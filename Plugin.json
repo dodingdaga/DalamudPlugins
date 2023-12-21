@@ -1,0 +1,33 @@
+[
+  {
+    "Author": "DodingDaga",
+    "Name": "Puppet Master",
+    "Description": "Let people control your character through chat.",
+    "InternalName": "PuppetMaster",
+    "AssemblyVersion": "7.0.0.0",
+    "TestingAssemblyVersion": "7.0.0.0",
+    "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 9,
+    "Tags": [
+      "puppet",
+      "master",
+      "slave",
+      "control",
+      "emote",
+      "plugin",
+      "commands"
+    ],
+    "Punchline": "Let others tell you what to do.",
+    "IsHide": "False",
+    "IsTestingExclusive": "False",
+    "DownloadCount": 0,
+    "LastUpdate": 0,
+    "LoadPriority": 0,
+    "LoadSync": true,
+    "Changelog": "API9, .NET 7.0.\nAPI update",
+    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip"
+  }
+]
