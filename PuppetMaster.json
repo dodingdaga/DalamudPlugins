@@ -23,7 +23,7 @@
     "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": "1659333000",
-    "Changelog": "API9, .NET 7.0.\nAPI update",
+    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nPer-person specific settings\nDefault Settings",
     "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
     "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
     "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip"
