@@ -5,6 +5,7 @@
   "AssemblyVersion": "7.0.0.0",
   "Description": "Let people control your character through chat.",
   "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
   "Tags": [
     "puppet",
     "master",
@@ -15,10 +16,14 @@
     "commands"
   ],
   "DalamudApiLevel": 9,
-  "LoadRequiredState": 0,
-  "LoadSync": false,
-  "CanUnloadAsync": false,
   "LoadPriority": 0,
   "Punchline": "Let others tell you what to do.",
-  "AcceptsFeedback": true
+  "IsHide": false,
+  "IsTestingExclusive": false,
+  "DownloadCount": 0,
+  "LastUpdated": "1659333000",
+  "Changelog": "API9, .NET 7.0.\nAPI update",
+  "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
+  "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
+  "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip"
 }
