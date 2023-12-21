@@ -6,7 +6,7 @@ Those features include :
 - Being able to enable a whitelist and a blacklist
 - Being able to add specific settings per whitelisted players or to make them use the default settings
 
-Thanks to DodingDage for this awesome plugin.
+Thanks to DodingDaga for this awesome plugin.
 
 Credits to the SimpleTweaksPlugin by Caraxi for providing the ChatHelper.cs file.
 You can find the SimpleTweaks source code here : https://github.com/Caraxi/SimpleTweaksPlugin
