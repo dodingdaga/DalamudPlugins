@@ -1,0 +1,21 @@
+{
+    "Author": "DodingDaga",
+    "Name": "Puppet Master",
+    "Punchline": "Let others tell you what to do.",
+    "Description": "Let people control your character through chat.",
+    "InternalName": "PuppetMaster",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
+    "Tags": [
+        "puppet",
+        "master",
+        "slave",
+        "control",
+        "emote",
+        "plugin",
+        "commands"
+    ],
+    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/puppetmaster/PuppetMaster_7.0.0.0.zip",
+    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/puppetmaster/PuppetMaster_7.0.0.0.zip",
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/puppetmaster/PuppetMaster_7.0.0.0.zip"
+}
