@@ -1,12 +1,16 @@
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
+using Lumina.Data.Parsing.Uld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using static Dalamud.Interface.Utility.Raii.ImRaii;
 
 #nullable enable
 namespace PuppetMaster
@@ -22,6 +26,9 @@ namespace PuppetMaster
         private string currentWhitelistSelectorSearch = "";
         private string viewModeBlacklist = "default";
         private string viewModeWhitelist = "default";
+        private int currentDraggedBlacklistIndex = -1;
+        private int currentDraggedWhitelistIndex = -1;
+
 
         public ConfigWindow() : base("Puppet Master Settings", ConfigWindow.defaultFlags, false)
         {
@@ -263,8 +270,10 @@ namespace PuppetMaster
                 ImGui.InputText("Search", ref this.currentWhitelistSelectorSearch, 200U);
                 ImGui.Spacing();
 
-                foreach (var WhitelistedPlayer in WhitelistedPlayers)
+                for (int index = 0; index < WhitelistedPlayers.Count; index++)
                 {
+                    var WhitelistedPlayer = WhitelistedPlayers[index];
+
                     if (WhitelistedPlayer != null)
                     {
                         if (CommonHelper.RegExpMatch(WhitelistedPlayer.PlayerName, this.currentWhitelistSelectorSearch) || (WhitelistedPlayer.PlayerName == String.Empty && CommonHelper.RegExpMatch(WhitelistedPlayer.Id, this.currentWhitelistSelectorSearch)))
@@ -277,11 +286,47 @@ namespace PuppetMaster
                                 this.selectedWhitelistedPlayer = WhitelistedPlayer;
                                 this.viewModeWhitelist = "edit";
                             }
+
+                            if (ImGui.BeginDragDropSource())
+                            {
+                                this.currentDraggedWhitelistIndex = index;
+                                ImGui.Text("Dragging: " + (WhitelistedPlayer.PlayerName == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName));
+
+                                unsafe
+                                {
+                                    int* draggedIndex = &index;
+                                    ImGui.SetDragDropPayload("DRAG_WHITELIST", new IntPtr(draggedIndex), sizeof(int));
+                                }
+
+                                ImGui.EndDragDropSource();
+                            }
+
+                            if (ImGui.BeginDragDropTarget())
+                            {
+                                ImGuiPayloadPtr acceptPayload = ImGui.AcceptDragDropPayload("DRAG_WHITELIST");
+                                bool isDropping = false;
+                                unsafe
+                                {
+                                    isDropping = acceptPayload.NativePtr != null;
+                                }
+
+                                if (isDropping)
+                                {
+                                    var temp = WhitelistedPlayers[this.currentDraggedWhitelistIndex];
+                                    WhitelistedPlayers.RemoveAt(this.currentDraggedWhitelistIndex);
+                                    WhitelistedPlayers.Insert(index, temp);
+                                    Service.configuration.Save();
+                                    this.currentDraggedWhitelistIndex = -1;
+                                }
+
+                                ImGui.EndDragDropTarget();
+                            }
                         }
                     }
                 }
+
+                ImGui.EndChild();
             }
-            ImGui.EndChild();
             ImGui.SameLine();
 
             if (ImGui.BeginChild("Whitelist_View", new Vector2(0.0f, -ImGui.GetFrameHeightWithSpacing()), true))
@@ -561,8 +606,10 @@ namespace PuppetMaster
                 ImGui.InputText("Search", ref this.currentBlacklistSelectorSearch, 200U);
                 ImGui.Spacing();
 
-                foreach (var BlacklistedPlayer in BlacklistedPlayers)
+                for (int index = 0; index < BlacklistedPlayers.Count; index++)
                 {
+                    var BlacklistedPlayer = BlacklistedPlayers[index];
+
                     if (BlacklistedPlayer != null)
                     {
                         if (CommonHelper.RegExpMatch(BlacklistedPlayer.PlayerName, this.currentBlacklistSelectorSearch) || (BlacklistedPlayer.PlayerName == String.Empty && CommonHelper.RegExpMatch(BlacklistedPlayer.Id, this.currentBlacklistSelectorSearch)))
@@ -574,6 +621,41 @@ namespace PuppetMaster
                             {
                                 this.selectedBlacklistedPlayer = BlacklistedPlayer;
                                 this.viewModeBlacklist = "edit";
+                            }
+
+                            if (ImGui.BeginDragDropSource())
+                            {
+                                this.currentDraggedBlacklistIndex = index;
+                                ImGui.Text("Dragging: " + (BlacklistedPlayer.PlayerName == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName));
+
+                                unsafe
+                                {
+                                    int* draggedIndexBl = &index;
+                                    ImGui.SetDragDropPayload("DRAG_BLACKLIST", new IntPtr(draggedIndexBl), sizeof(int));
+                                }
+
+                                ImGui.EndDragDropSource();
+                            }
+
+                            if (ImGui.BeginDragDropTarget())
+                            {
+                                ImGuiPayloadPtr acceptPayload = ImGui.AcceptDragDropPayload("DRAG_BLACKLIST");
+                                bool isDropping = false;
+                                unsafe
+                                {
+                                    isDropping = acceptPayload.NativePtr != null;
+                                }
+
+                                if (isDropping)
+                                {
+                                    var temp = BlacklistedPlayers[this.currentDraggedBlacklistIndex];
+                                    BlacklistedPlayers.RemoveAt(this.currentDraggedBlacklistIndex);
+                                    BlacklistedPlayers.Insert(index, temp);
+                                    Service.configuration.Save();
+                                    this.currentDraggedBlacklistIndex = -1;
+                                }
+
+                                ImGui.EndDragDropTarget();
                             }
                         }
                     }
