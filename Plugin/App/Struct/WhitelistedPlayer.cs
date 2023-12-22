@@ -38,123 +38,122 @@ namespace PuppetMaster
 
         public List<ChannelSetting> EnabledChannels { get; set; } = new List<ChannelSetting>()
         {
-              new ChannelSetting()
-              {
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 37,
                 Name = "CWLS1"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 101,
                 Name = "CWLS2"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 102,
                 Name = "CWLS3"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 103,
                 Name = "CWLS4"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 104,
                 Name = "CWLS5"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 105,
                 Name = "CWLS6"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 106,
                 Name = "CWLS7"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 107,
                 Name = "CWLS8"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 16,
                 Name = "LS1"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 17,
                 Name = "LS2"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 18,
                 Name = "LS3"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 19,
                 Name = "LS4"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 20,
                 Name = "LS5"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 21,
                 Name = "LS6"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 22,
                 Name = "LS7"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 23,
                 Name = "LS8"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 13,
                 Name = "Tell"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 10,
                 Name = "Say"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 14,
                 Name = "Party"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 30,
                 Name = "Yell"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 11,
                 Name = "Shout"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 24,
                 Name = "Free Company"
-              },
-              new ChannelSetting()
-              {
+            },
+            new ChannelSetting()
+            {
                 ChatType = (XivChatType) 15,
                 Name = "Alliance"
-              }
+            }
         };
-
 
         public WhitelistedPlayer(string playerName = "")
         {
@@ -180,22 +179,24 @@ namespace PuppetMaster
                 }
 
                 if (!(CustomRx == null | reload))
-                {
                     return;
-                }
 
                 try {
                     CustomRx = new Regex(CustomPhrase);
-                } catch (Exception ex) { }
+                } catch (Exception ex)
+                {
+                    Service.Logger.Error("[PuppetMaster] [Error] Could not initialize Regex for Whitelist entry n°" + this.Id);
+                }
             } else {
                 if (!(Rx == null | reload))
-                {
                     return;
-                }
 
                 try {
                     Rx = new Regex(GetDefaultRegex());
-                } catch (Exception ex) { }
+                } catch (Exception ex)
+                {
+                    Service.Logger.Error("[PuppetMaster] [Error] Could not initialize Regex for Whitelist entry n°" + this.Id);
+                }
             }
         }
 
