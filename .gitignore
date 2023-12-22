@@ -2,3 +2,4 @@
 .vs
 Plugin/obj
 Plugin/bin/*
+*.sln
