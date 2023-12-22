@@ -10,7 +10,7 @@ Dev Changelog :
 - Preparation for Dalamud API level 10 (IPlugginLogger)
 - Cleaned decompiled code
 
-# How to Use READ EVERYTHING FIRST
+# How to Use - READ EVERYTHING FIRST
 
 IMPORTANT : Make sure to backup your original puppetmaster trigger phrases/regex as you will probably lose them while switching to this version !
 
