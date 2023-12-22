@@ -11,6 +11,8 @@ namespace PuppetMaster
 {
     public sealed class Plugin : IDalamudPlugin
     {
+        public string Name => "PuppetMaster";
+
         private readonly List<Tuple<string, string>> commandNames = new()
         {
             new Tuple<string, string>("/puppetmaster", "Open PuppetMaster settings"),
@@ -18,17 +20,18 @@ namespace PuppetMaster
             new Tuple < string, string >("/puppet", "Alias for puppetmaster settings")
         };
 
-        public WindowSystem windowSystem = new("PuppetMaster");
-        public ConfigWindow configWindow = new();
+        public WindowSystem WindowSystem = new("PuppetMaster");
+        public ConfigWindow ConfigWindow { get; init; } = new();
 
-        public static string Name => "PuppetMaster";
 
         public Plugin(DalamudPluginInterface pluginInterface)
         {
             pluginInterface.Create<Service>(Array.Empty<object>());
+
             Service.plugin = this;
             Service.InitializeConfig();
-            windowSystem.AddWindow(configWindow);
+
+            WindowSystem.AddWindow(ConfigWindow);
 
             foreach (var CommandName in commandNames)
             {
@@ -39,14 +42,17 @@ namespace PuppetMaster
             }
 
             Service.ChatGui.ChatMessage += new IChatGui.OnMessageDelegate(PuppetMaster.ChatHandler.OnChatMessage);
-            Service.PluginInterface.UiBuilder.Draw += new Action(this.DrawUI);
-            Service.PluginInterface.UiBuilder.OpenConfigUi += new Action(this.DrawConfigUI);
+
+            Service.PluginInterface.UiBuilder.Draw += DrawUI;
+            Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+
             Service.InitializeEmotes();
         }
 
         public void Dispose()
         {
-            this.windowSystem.RemoveAllWindows();
+            this.WindowSystem.RemoveAllWindows();
+
             Service.ChatGui.ChatMessage -= new IChatGui.OnMessageDelegate(PuppetMaster.ChatHandler.OnChatMessage);
 
             foreach (var CommandName in commandNames)
@@ -64,12 +70,13 @@ namespace PuppetMaster
 
         private void DrawUI()
         {
-            this.windowSystem.Draw();
+            this.WindowSystem.Draw();
         }
 
         public void DrawConfigUI()
         {
-            configWindow.IsOpen = !configWindow.IsOpen;
+            // Toggle open/close plugin
+            ConfigWindow.IsOpen = !ConfigWindow.IsOpen;
         }
     }
 }
