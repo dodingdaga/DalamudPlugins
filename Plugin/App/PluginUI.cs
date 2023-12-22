@@ -366,7 +366,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("You can input a full name, a partial name or a regular expression");
+                            ImGui.TextUnformatted("You can input a full name or a partial name");
                             ImGui.EndTooltip();
                         }
 
@@ -529,7 +529,7 @@ namespace PuppetMaster
                                 ImGui.TextColored(ImGuiColors.DalamudViolet, "Enabled channels");
 
                                 ImGui.SameLine();
-                                ImGuiComponents.HelpMarker("The list of default channels that will be listened for commands" +
+                                ImGuiComponents.HelpMarker("The list of channels that will be listened for commands for this specific user" +
                                     "\nFor exemple, if you enable the say chat only, you will only be able to receive command through /say");
 
                                 List<(int, int)> ranges = new List<(int, int)>
@@ -699,7 +699,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("You can input a full name, a partial name or a regular expression");
+                            ImGui.TextUnformatted("You can input a full name or a partial name");
                             ImGui.EndTooltip();
                         }
                     }
