@@ -1,5 +1,4 @@
 .git
 .vs
 Plugin/obj
-Plugin/bin/x64/Debug/*
-Plugin/bin/x64/Release/*
+Plugin/bin/*
