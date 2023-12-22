@@ -6,6 +6,9 @@ Those features include :
 - Being able to enable a whitelist and a blacklist
 - Being able to add specific settings per whitelisted players or to make them use the default settings
 
+Dev Changelog :
+- Preparation for Dalamud API level 10 (IPlugginLogger)
+
 Thanks to DodingDaga for this awesome plugin.
 
 Credits to the SimpleTweaksPlugin by Caraxi for providing the ChatHelper.cs file.
