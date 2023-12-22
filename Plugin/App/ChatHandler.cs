@@ -121,6 +121,7 @@ namespace PuppetMaster
             }
             catch (Exception ex)
             {
+                Service.Logger.Error("[PuppetMaster] [Error] Regex error while listening for command");
             }
 
             Service.ParsedTextCommand parsedTextCommand = Service.FormatCommand(command);
