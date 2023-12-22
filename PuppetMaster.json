@@ -22,8 +22,8 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1659333000",
-    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nPer-person specific settings\nDefault Settings",
+    "LastUpdated": 0,
+    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks",
     "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
     "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
     "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip"
