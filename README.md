@@ -10,3 +10,6 @@ Thanks to DodingDaga for this awesome plugin.
 
 Credits to the SimpleTweaksPlugin by Caraxi for providing the ChatHelper.cs file.
 You can find the SimpleTweaks source code here : https://github.com/Caraxi/SimpleTweaksPlugin
+
+Edit : Original ChatHelper.cs file found here
+https://git.anna.lgbt/ascclemens/XivCommon/src/branch/main/XivCommon/Functions/Chat.cs
