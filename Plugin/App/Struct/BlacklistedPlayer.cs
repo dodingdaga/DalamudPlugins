@@ -12,6 +12,7 @@ namespace PuppetMaster
         public readonly string Id = "";
         public string PlayerName = string.Empty;
         public bool Enabled = true;
+        public bool StrictPlayerName = true;
 
         public BlacklistedPlayer(string name = "")
         {

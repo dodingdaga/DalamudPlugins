@@ -34,6 +34,8 @@ namespace PuppetMaster
 
         public string DefaultReplaceMatch { get; set; } = string.Empty;
 
+        public string DefaultTestInput { get; set; } = string.Empty;
+
         public List<ChannelSetting> DefaultEnabledChannels { get; set; } = new List<ChannelSetting>();
 
         public List<BlacklistedPlayer> BlacklistedPlayers { get; set; } = new List<BlacklistedPlayer>();

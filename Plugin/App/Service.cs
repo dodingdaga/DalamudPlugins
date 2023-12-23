@@ -13,7 +13,7 @@ using System.Text.RegularExpressions;
 #nullable enable
 namespace PuppetMaster
 {
-    internal class Service
+    public class Service
     {
         public static Plugin? plugin;
         public static Configuration? configuration;
@@ -101,6 +101,30 @@ namespace PuppetMaster
                     Service.Logger.Error("[PuppetMaster] [Error] Could not initialize default Regex");
                 }
             }
+        }
+
+        public static Service.ParsedTextCommand GetTestInputCommand()
+        {
+            Service.ParsedTextCommand testInputCommand = new Service.ParsedTextCommand();
+            Service.InitializeRegex();
+
+            bool flag = Service.configuration.DefaultUseRegex && Service.CustomRx != null;
+            MatchCollection matchCollection = flag ? Service.CustomRx.Matches(Service.configuration.DefaultTestInput) : Service.Rx.Matches(Service.configuration.DefaultTestInput);
+
+            if (matchCollection.Count != 0)
+            {
+                testInputCommand.Args = matchCollection[0].ToString();
+
+                try {
+                    testInputCommand.Main = flag ? Service.CustomRx.Replace(matchCollection[0].Value, Service.configuration.DefaultReplaceMatch) : Service.Rx.Replace(matchCollection[0].Value, Service.GetDefaultReplaceMatch());
+                } catch (Exception ex) {
+                    Service.Logger.Error("[PuppetMaster] [Error] Error using Regex");
+                }
+            }
+
+            testInputCommand.Main = Service.FormatCommand(testInputCommand.Main).ToString();
+
+            return testInputCommand;
         }
 
         public static Service.ParsedTextCommand FormatCommand(string command)

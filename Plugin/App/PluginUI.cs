@@ -19,6 +19,7 @@ namespace PuppetMaster
     {
         public const string Name = "Puppet Master Settings";
         private static ImGuiWindowFlags defaultFlags = ImGuiWindowFlags.NoCollapse;
+        private static Service.ParsedTextCommand textCommand = new Service.ParsedTextCommand();
 
         private BlacklistedPlayer? selectedBlacklistedPlayer;
         private WhitelistedPlayer? selectedWhitelistedPlayer;
@@ -178,18 +179,33 @@ namespace PuppetMaster
                 }
             }
 
+            string testInput = Service.configuration.DefaultTestInput;
+
+            if (ImGui.InputText("Test Input", ref testInput, 500U))
+            {
+                Service.configuration.DefaultTestInput = testInput;
+                Service.configuration.Save();
+                ConfigWindow.textCommand = Service.GetTestInputCommand();
+            }
+
             ImGui.PushItemWidth(350f);
 
             if (Service.configuration.DefaultUseRegex)
             {
+                ImGui.Text("Matched: " + ConfigWindow.textCommand.Args);
+
                 string replaceMatch = Service.configuration.DefaultReplaceMatch;
 
                 if (ImGui.InputText("Replacement", ref replaceMatch, 500U))
                 {
                     Service.configuration.DefaultReplaceMatch = replaceMatch;
                     Service.configuration.Save();
+                    ConfigWindow.textCommand = Service.GetTestInputCommand();
                 }
             }
+
+            ImGui.Text("Result: " + ConfigWindow.textCommand.Main);
+            ImGui.PopItemWidth();
 
             ImGui.Separator();
             ImGui.TextColored(ImGuiColors.DalamudViolet, "Default requests allowed");
@@ -279,7 +295,7 @@ namespace PuppetMaster
                         if (CommonHelper.RegExpMatch(WhitelistedPlayer.PlayerName, this.currentWhitelistSelectorSearch) || (WhitelistedPlayer.PlayerName == String.Empty && CommonHelper.RegExpMatch(WhitelistedPlayer.Id, this.currentWhitelistSelectorSearch)))
                         {
                             string isDisabled = WhitelistedPlayer.Enabled ? "" : "[Disabled] ";
-                            string name = WhitelistedPlayer.PlayerName == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName;
+                            string name = WhitelistedPlayer.PlayerName.Trim() == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName.Trim();
 
                             if (ImGui.Selectable(isDisabled + name, WhitelistedPlayer.Id == SelectedWhitelistedPlayerId))
                             {
@@ -290,7 +306,7 @@ namespace PuppetMaster
                             if (ImGui.BeginDragDropSource())
                             {
                                 this.currentDraggedWhitelistIndex = index;
-                                ImGui.Text("Dragging: " + (WhitelistedPlayer.PlayerName == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName));
+                                ImGui.Text("Dragging: " + (WhitelistedPlayer.PlayerName.Trim() == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName.Trim()));
 
                                 unsafe
                                 {
@@ -341,7 +357,7 @@ namespace PuppetMaster
                     {
                         selectedWhitelistedPlayer.InitializeRegex();
 
-                        ImGui.TextWrapped("Editing entry N°" + this.selectedWhitelistedPlayer.Id);
+                        ImGui.Text("Editing entry N°" + this.selectedWhitelistedPlayer.Id);
                         ImGui.Spacing();
 
                         if (ImGui.Checkbox("Enabled", ref selectedWhitelistedPlayer.Enabled))
@@ -357,8 +373,10 @@ namespace PuppetMaster
                         }
 
                         ImGui.Spacing();
+                        ImGui.Separator();
+                        ImGui.Spacing();
 
-                        if (ImGui.InputText("Player name", ref selectedWhitelistedPlayer.PlayerName, 99U))
+                        if (ImGui.InputText("Player name", ref selectedWhitelistedPlayer.PlayerName, 500U))
                         {
                             Service.configuration.Save();
                         }
@@ -366,7 +384,21 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("You can input a full name or a partial name");
+                            ImGui.TextUnformatted("The " + (selectedWhitelistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the whitelisted player" + (!selectedWhitelistedPlayer.StrictPlayerName ? "\nYou can use Regex" : ""));
+                            ImGui.EndTooltip();
+                        }
+
+                        ImGui.Spacing();
+
+                        if (ImGui.Checkbox("Strict player name check", ref selectedWhitelistedPlayer.StrictPlayerName))
+                        {
+                            Service.configuration.Save();
+                        }
+
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.TextUnformatted("If checked, the player name in chat has to match exactly with the one set above");
                             ImGui.EndTooltip();
                         }
 
@@ -420,8 +452,6 @@ namespace PuppetMaster
                                 ImGui.SameLine();
                                 ImGuiComponents.HelpMarker("The trigger phrase(s) that this person can use");
 
-                                ImGui.PushItemWidth(350f);
-
                                 string str = selectedWhitelistedPlayer.UseRegex ? selectedWhitelistedPlayer.CustomPhrase : selectedWhitelistedPlayer.TriggerPhrase;
 
                                 if (ImGui.InputText(selectedWhitelistedPlayer.UseRegex ? "Pattern" : "Trigger", ref str, 500U))
@@ -436,8 +466,6 @@ namespace PuppetMaster
                                     Service.configuration.Save();
                                     selectedWhitelistedPlayer.InitializeRegex(true);
                                 }
-
-                                ImGui.PopItemWidth();
 
                                 if (!selectedWhitelistedPlayer.UseRegex && ImGui.IsItemHovered())
                                 {
@@ -469,15 +497,27 @@ namespace PuppetMaster
                                     }
                                 }
 
-                                ImGui.PushItemWidth(350f);
+                                if (ImGui.InputText("Test Input", ref selectedWhitelistedPlayer.TestInput, 500U))
+                                {
+                                    Service.configuration.Save();
+                                    selectedWhitelistedPlayer.textCommand = selectedWhitelistedPlayer.GetTestInputCommand();
+                                }
 
                                 if (selectedWhitelistedPlayer.UseRegex)
                                 {
+                                    ImGui.Text("Matched: " + selectedWhitelistedPlayer.textCommand.Args);
+
+                                    string replaceMatch = selectedWhitelistedPlayer.ReplaceMatch;
+
                                     if (ImGui.InputText("Replacement", ref selectedWhitelistedPlayer.ReplaceMatch, 500U))
                                     {
                                         Service.configuration.Save();
+                                        selectedWhitelistedPlayer.textCommand = selectedWhitelistedPlayer.GetTestInputCommand();
                                     }
                                 }
+
+
+                                ImGui.Text("Result: " + selectedWhitelistedPlayer.textCommand.Main);
                             }
 
                             if (!useDefaultRequests)
@@ -615,7 +655,7 @@ namespace PuppetMaster
                         if (CommonHelper.RegExpMatch(BlacklistedPlayer.PlayerName, this.currentBlacklistSelectorSearch) || (BlacklistedPlayer.PlayerName == String.Empty && CommonHelper.RegExpMatch(BlacklistedPlayer.Id, this.currentBlacklistSelectorSearch)))
                         {
                             string isDisabled = BlacklistedPlayer.Enabled ? "" : "[Disabled] ";
-                            string name = BlacklistedPlayer.PlayerName == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName;
+                            string name = BlacklistedPlayer.PlayerName.Trim() == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName.Trim();
 
                             if (ImGui.Selectable(isDisabled + name, BlacklistedPlayer.Id == SelectedBlacklistedPlayerId))
                             {
@@ -626,7 +666,7 @@ namespace PuppetMaster
                             if (ImGui.BeginDragDropSource())
                             {
                                 this.currentDraggedBlacklistIndex = index;
-                                ImGui.Text("Dragging: " + (BlacklistedPlayer.PlayerName == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName));
+                                ImGui.Text("Dragging: " + (BlacklistedPlayer.PlayerName.Trim() == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName.Trim()));
 
                                 unsafe
                                 {
@@ -674,7 +714,7 @@ namespace PuppetMaster
                 {
                     if (this.selectedBlacklistedPlayer != null)
                     {
-                        ImGui.TextWrapped("Editing entry N°" + this.selectedBlacklistedPlayer.Id);
+                        ImGui.Text("Editing entry N°" + this.selectedBlacklistedPlayer.Id);
                         ImGui.Spacing();
 
                         if (ImGui.Checkbox("Enabled", ref selectedBlacklistedPlayer.Enabled))
@@ -690,6 +730,8 @@ namespace PuppetMaster
                         }
 
                         ImGui.Spacing();
+                        ImGui.Separator();
+                        ImGui.Spacing();
 
                         if (ImGui.InputText("Player name", ref selectedBlacklistedPlayer.PlayerName, 99U))
                         {
@@ -699,7 +741,21 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("You can input a full name or a partial name");
+                            ImGui.TextUnformatted("The " + (selectedBlacklistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the blacklisted player");
+                            ImGui.EndTooltip();
+                        }
+
+                        ImGui.Spacing();
+
+                        if (ImGui.Checkbox("Strict player name check", ref selectedBlacklistedPlayer.StrictPlayerName))
+                        {
+                            Service.configuration.Save();
+                        }
+
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.TextUnformatted("If checked, the player name in chat has to match exactly with the one set above");
                             ImGui.EndTooltip();
                         }
                     }

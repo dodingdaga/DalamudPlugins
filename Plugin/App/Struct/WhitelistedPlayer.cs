@@ -13,11 +13,12 @@ namespace PuppetMaster
         public readonly string Id = "";
         public string PlayerName = string.Empty;
         public bool Enabled = true;
+        public bool StrictPlayerName = true;
 
 
         public bool UseAllDefaultSettings = true;
         public bool UseDefaultTrigger = false;
-        public bool UseDefaultRequests  = false;
+        public bool UseDefaultRequests = false;
         public bool UseDefaultEnabledChannels = false;
 
 
@@ -25,6 +26,7 @@ namespace PuppetMaster
         public string CustomPhrase = string.Empty;
         public string ReplaceMatch = string.Empty;
         public bool UseRegex = false;
+        public string TestInput = string.Empty;
 
 
         public bool AllowSit = false;
@@ -35,6 +37,7 @@ namespace PuppetMaster
         public Regex? Rx;
         public Regex? CustomRx;
 
+        public Service.ParsedTextCommand textCommand = new Service.ParsedTextCommand();
 
         public List<ChannelSetting> EnabledChannels { get; set; } = new List<ChannelSetting>()
         {
@@ -198,6 +201,30 @@ namespace PuppetMaster
                     Service.Logger.Error("[PuppetMaster] [Error] Could not initialize Regex for Whitelist entry n°" + this.Id);
                 }
             }
+        }
+
+        public Service.ParsedTextCommand GetTestInputCommand()
+        {
+            Service.ParsedTextCommand testInputCommand = new Service.ParsedTextCommand();
+            this.InitializeRegex();
+
+            bool flag = UseRegex && CustomRx != null;
+            MatchCollection matchCollection = flag ? CustomRx.Matches(TestInput) : Rx.Matches(TestInput);
+
+            if (matchCollection.Count != 0)
+            {
+                testInputCommand.Args = matchCollection[0].ToString();
+
+                try {
+                    testInputCommand.Main = flag ? CustomRx.Replace(matchCollection[0].Value, ReplaceMatch) : Rx.Replace(matchCollection[0].Value, GetDefaultReplaceMatch());
+                } catch (Exception ex) {
+                    Service.Logger.Error("[PuppetMaster] [Error] Error using Regex");
+                }
+            }
+
+            testInputCommand.Main = Service.FormatCommand(testInputCommand.Main).ToString();
+
+            return testInputCommand;
         }
 
         private string GetDefaultRegex()
