@@ -15,6 +15,7 @@ Dev Changelog :
 IMPORTANT : Make sure to backup your original puppetmaster trigger phrases/regex as you will probably lose them while switching to this version !
 
 As long as DodingDaga does not accept my pull request and merge my version into theirs, you will have to first disable the original plugin, delete it from /xlplugins and then add the custom repo given below to start downloading the new version 
+YOU DO NOT HAVE TO DELETE DODINGDAGA'S REPO, IF YOU USE COPYCAT, KEEP IT
 
 `https://raw.githubusercontent.com/Aspher0/PuppetMaster_Fork/main/PuppetMaster.json`
 
