@@ -11,16 +11,16 @@ namespace PuppetMaster
 {
     public sealed class Plugin : IDalamudPlugin
     {
-        public string Name => "PuppetMaster";
+        public string Name => "PuppetMaster - A.S Fork";
 
         private readonly List<Tuple<string, string>> commandNames = new()
         {
             new Tuple<string, string>("/puppetmaster", "Open PuppetMaster settings"),
-            new Tuple < string, string >("/ppm", "Alias for puppetmaster settings"),
-            new Tuple < string, string >("/puppet", "Alias for puppetmaster settings")
+            new Tuple < string, string >("/ppm", "Alias for PuppetMaster settings"),
+            new Tuple < string, string >("/puppet", "Alias for PuppetMaster settings")
         };
 
-        public WindowSystem WindowSystem = new("PuppetMaster");
+        public WindowSystem WindowSystem = new("PuppetMaster - A.S Fork");
         public ConfigWindow ConfigWindow { get; init; } = new();
 
 
@@ -47,6 +47,7 @@ namespace PuppetMaster
             Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
 
             Service.InitializeEmotes();
+            Service.InitializeWorlds();
         }
 
         public void Dispose()

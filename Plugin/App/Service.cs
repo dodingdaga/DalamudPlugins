@@ -4,6 +4,7 @@ using Dalamud.Game.Text;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
 using System;
@@ -20,7 +21,9 @@ namespace PuppetMaster
         public static Regex? Rx;
         public static Regex? CustomRx;
         public static ExcelSheet<Emote>? emoteCommands;
+        public static ExcelSheet<World>? worlds;
         public static HashSet<string> Emotes = new HashSet<string>();
+        public static List<World> Worlds = new List<World>();
 
         public static void InitializeEmotes()
         {
@@ -57,6 +60,36 @@ namespace PuppetMaster
                     return;
 
                 Service.Logger.Error("[PuppetMaster] [Error] Failed to build Emotes list");
+            }
+        }
+
+        public static void InitializeWorlds()
+        {
+            Service.worlds = Service.DataManager.GetExcelSheet<World>();
+
+            if (Service.worlds == null)
+            {
+                Service.Logger.Error("[PuppetMaster] [Error] Failed to read Worlds list");
+            }
+            else
+            {
+                foreach (var world in Service.worlds)
+                {
+                    if (world.IsPublic)
+                        Service.Worlds.Add(world);
+                }
+
+                if (Service.Worlds.Count != 0)
+                {
+                    foreach (var world in Service.Worlds)
+                    {
+                        Service.Logger.Info("[PuppetMaster] World : Name - " + world.Name + " /// Internal_name - " + world.InternalName + " /// Region - " + world.Region);
+                    }
+
+                    return;
+                }
+
+                Service.Logger.Error("[PuppetMaster] [Error] Failed to build Worlds list");
             }
         }
 

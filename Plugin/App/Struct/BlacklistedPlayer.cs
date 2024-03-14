@@ -11,6 +11,7 @@ namespace PuppetMaster
     {
         public readonly string Id = "";
         public string PlayerName = string.Empty;
+        public string PlayerWorld = string.Empty;
         public bool Enabled = true;
         public bool StrictPlayerName = true;
 

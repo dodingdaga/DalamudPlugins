@@ -17,7 +17,7 @@ namespace PuppetMaster
 {
     public class ConfigWindow : Window, IDisposable
     {
-        public const string Name = "Puppet Master Settings";
+        public const string Name = "Puppet Master Settings - A.S. Fork";
         private static ImGuiWindowFlags defaultFlags = ImGuiWindowFlags.NoCollapse;
         private static Service.ParsedTextCommand textCommand = new Service.ParsedTextCommand();
 
@@ -31,7 +31,7 @@ namespace PuppetMaster
         private int currentDraggedWhitelistIndex = -1;
 
 
-        public ConfigWindow() : base("Puppet Master Settings", ConfigWindow.defaultFlags, false)
+        public ConfigWindow() : base("Puppet Master Settings - A.S. Fork", ConfigWindow.defaultFlags, false)
         {
 
         }
@@ -384,7 +384,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The " + (selectedWhitelistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the whitelisted player" + (!selectedWhitelistedPlayer.StrictPlayerName ? "\nYou can use Regex" : ""));
+                            ImGui.TextUnformatted("The " + (selectedWhitelistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the whitelisted player (Exemple: Kitty Cat)" + (!selectedWhitelistedPlayer.StrictPlayerName ? "\nYou can use Regex" : ""));
                             ImGui.EndTooltip();
                         }
 
@@ -399,6 +399,22 @@ namespace PuppetMaster
                         {
                             ImGui.BeginTooltip();
                             ImGui.TextUnformatted("If checked, the player name in chat has to match exactly with the one set above");
+                            ImGui.EndTooltip();
+                        }
+
+                        ImGui.Spacing();
+
+                        // To do, maybe ? Add a dropdown menu with all worlds extracted from Lumina Sheets (in Service.Worlds)
+
+                        if (ImGui.InputText("Player World", ref selectedWhitelistedPlayer.PlayerWorld, 500U))
+                        {
+                            Service.configuration.Save();
+                        }
+
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.TextUnformatted("The world name of the whitelisted player (Exemple: Balmung).\nType * to match any world.");
                             ImGui.EndTooltip();
                         }
 
@@ -741,7 +757,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The " + (selectedBlacklistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the blacklisted player");
+                            ImGui.TextUnformatted("The " + (selectedBlacklistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the blacklisted player (Exemple: Kitty Cat)");
                             ImGui.EndTooltip();
                         }
 
@@ -756,6 +772,22 @@ namespace PuppetMaster
                         {
                             ImGui.BeginTooltip();
                             ImGui.TextUnformatted("If checked, the player name in chat has to match exactly with the one set above");
+                            ImGui.EndTooltip();
+                        }
+
+                        ImGui.Spacing();
+
+                        // To do, maybe ? Add a dropdown menu with all worlds extracted from Lumina Sheets (in Service.Worlds)
+
+                        if (ImGui.InputText("Player World", ref selectedBlacklistedPlayer.PlayerWorld, 500U))
+                        {
+                            Service.configuration.Save();
+                        }
+
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.TextUnformatted("The world name of the blacklisted player (Exemple: Balmung).\nType * to match any world.");
                             ImGui.EndTooltip();
                         }
                     }
