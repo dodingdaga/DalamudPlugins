@@ -23,9 +23,9 @@
     "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": 0,
-    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nDrag and Drop organization for both whitelist and blacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks\nReady for Dalamud API 10",
-    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/latest/latest.zip"
+    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nDrag and Drop organization for both whitelist and blacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks\nReady for Dalamud API 10\nPlayer world check\nWhitelist behavior changed",
+    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip"
   }
 ]
