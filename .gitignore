@@ -1,0 +1,6 @@
+.git
+.vs
+Plugin/obj
+Plugin/bin/*
+*.sln
+debug.log

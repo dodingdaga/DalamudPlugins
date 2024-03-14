@@ -1,15 +1,20 @@
 [
-    {
-    "Author": "DodingDaga",
-    "Name": "Puppet Master",
+  {
+    "Author": "DodingDaga, AS",
+    "Name": "Puppet Master - A.S. Fork",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "6.5.0.0",
-    "Description": "For the lulz",
+    "AssemblyVersion": "7.1.2.1",
+    "Description": "Let people control your character through chat.",
     "ApplicableVersion": "any",
-    "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
+    "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
     "Tags": [
+      "puppet",
+      "master",
+      "slave",
+      "control",
       "emote",
-      "plugin"
+      "plugin",
+      "commands"
     ],
     "DalamudApiLevel": 9,
     "LoadPriority": 0,
@@ -17,33 +22,10 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1659333000",
-    "Changelog": "API9, .NET 7.0.\nAPI update",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.5.0.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.5.0.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp6.5.0.0/latest.zip"
-  },
-  {
-    "Author": "DodingDaga",
-    "Name": "Right Back At You",
-    "InternalName": "Copycat",
-    "AssemblyVersion": "6.5.0.0",
-    "Description": "For the lulz",
-    "ApplicableVersion": "any",
-    "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
-    "Tags": [
-      "plugin",
-      "emote"
-    ],
-    "DalamudApiLevel": 9,
-    "LoadPriority": 0,
-    "Punchline": "Nothing but a second-rate, trying hard, copycat!",
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadCount": 0,
-    "LastUpdated": "1659333000",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip"
+    "LastUpdated": 0,
+    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nDrag and Drop organization for both whitelist and blacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks\nReady for Dalamud API 10\nPlayer world check\nWhitelist behavior changed",
+    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip"
   }
 ]
