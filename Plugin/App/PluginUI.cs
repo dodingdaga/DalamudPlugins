@@ -230,7 +230,7 @@ namespace PuppetMaster
             {
                 ImGui.BeginTooltip();
                 ImGui.TextUnformatted("If enabled, the game's emotes text won't be displayed to chat" +
-                    "\nFor exemple, a \"grovel\" request will be replace with \"/grovel motion\"");
+                    "\nFor example, a \"grovel\" request will be replace with \"/grovel motion\"");
                 ImGui.EndTooltip();
             }
 
@@ -258,7 +258,7 @@ namespace PuppetMaster
 
             ImGui.SameLine();
             ImGuiComponents.HelpMarker("The list of default channels that will be listened for commands" +
-                "\nFor exemple, if you enable the say chat only, you will only be able to receive command through /say");
+                "\nFor example, if you enable the say chat only, you will only be able to receive command through /say");
 
             for (int index = 16; index < 23; ++index)
                 ConfigWindow.DrawCheckbox(index);
@@ -384,7 +384,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The " + (selectedWhitelistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the whitelisted player (Exemple: Kitty Cat)" + (!selectedWhitelistedPlayer.StrictPlayerName ? "\nYou can use Regex" : ""));
+                            ImGui.TextUnformatted("The " + (selectedWhitelistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the whitelisted player (Example: Kitty Cat)" + (!selectedWhitelistedPlayer.StrictPlayerName ? "\nYou can use Regex" : ""));
                             ImGui.EndTooltip();
                         }
 
@@ -414,7 +414,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The world name of the whitelisted player (Exemple: Balmung).\nType * to match any world.");
+                            ImGui.TextUnformatted("The world name of the whitelisted player (Example: Balmung).\nType * to match any world.");
                             ImGui.EndTooltip();
                         }
 
@@ -558,7 +558,7 @@ namespace PuppetMaster
                                 {
                                     ImGui.BeginTooltip();
                                     ImGui.TextUnformatted("If enabled, the game's emotes text won't be displayed to chat" +
-                                        "\nFor exemple, a \"grovel\" request will be replace with \"/grovel motion\"");
+                                        "\nFor example, a \"grovel\" request will be replace with \"/grovel motion\"");
                                     ImGui.EndTooltip();
                                 }
 
@@ -586,7 +586,7 @@ namespace PuppetMaster
 
                                 ImGui.SameLine();
                                 ImGuiComponents.HelpMarker("The list of channels that will be listened for commands for this specific user" +
-                                    "\nFor exemple, if you enable the say chat only, you will only be able to receive command through /say");
+                                    "\nFor example, if you enable the say chat only, you will only be able to receive command through /say");
 
                                 List<(int, int)> ranges = new List<(int, int)>
                                 {
@@ -757,7 +757,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The " + (selectedBlacklistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the blacklisted player (Exemple: Kitty Cat)");
+                            ImGui.TextUnformatted("The " + (selectedBlacklistedPlayer.StrictPlayerName ? "full" : "partial") + " name of the blacklisted player (Example: Kitty Cat)");
                             ImGui.EndTooltip();
                         }
 
@@ -787,7 +787,7 @@ namespace PuppetMaster
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("The world name of the blacklisted player (Exemple: Balmung).\nType * to match any world.");
+                            ImGui.TextUnformatted("The world name of the blacklisted player (Example: Balmung).\nType * to match any world.");
                             ImGui.EndTooltip();
                         }
                     }
@@ -827,11 +827,11 @@ namespace PuppetMaster
             ImGui.TextColored(ImGuiColors.DalamudViolet, "Usage :");
             ImGui.Text("Open menu : /puppetmaster, /puppet, /ppm");
             ImGui.Text("Trigger usage (emote) : <trigger_phrase> <emote>");
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "        Exemple:");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "        Example:");
             ImGui.SameLine();
             ImGui.Text("please do grovel");
             ImGui.Text("Trigger usage (command) : <trigger_phrase> (<command> <subcommand> [placeholder])");
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "        Exemple:");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "        Example:");
             ImGui.SameLine();
             ImGui.Text("please do (ac \"Vercure\" [t])");
 
