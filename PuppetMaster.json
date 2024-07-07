@@ -27,7 +27,7 @@
     "Author": "DodingDaga",
     "Name": "Right Back At You",
     "InternalName": "Copycat",
-    "AssemblyVersion": "6.5.0.0",
+    "AssemblyVersion": "7.0.0.0",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -35,15 +35,17 @@
       "plugin",
       "emote"
     ],
-    "DalamudApiLevel": 9,
+    "DalamudApiLevel": 10,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
     "LoadPriority": 0,
     "Punchline": "Nothing but a second-rate, trying hard, copycat!",
-    "IsHide": false,
-    "IsTestingExclusive": false,
+    "AcceptsFeedback": true
     "DownloadCount": 0,
-    "LastUpdated": "1659333000",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc6.5.0.0/latest.zip"
+    "LastUpdated": "1720345513",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.0.0.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.0.0.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.0.0.0/latest.zip"
   }
 ]
