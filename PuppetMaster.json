@@ -1,5 +1,5 @@
 [
-    {
+  {
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
@@ -36,12 +36,10 @@
       "emote"
     ],
     "DalamudApiLevel": 10,
-    "LoadRequiredState": 0,
-    "LoadSync": false,
-    "CanUnloadAsync": false,
     "LoadPriority": 0,
     "Punchline": "Nothing but a second-rate, trying hard, copycat!",
-    "AcceptsFeedback": true
+    "IsHide": false,
+    "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": "1720345513",
     "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.0.0.0/latest.zip",
