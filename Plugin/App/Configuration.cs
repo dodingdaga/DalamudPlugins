@@ -9,9 +9,6 @@ namespace PuppetMaster
     [Serializable]
     public class Configuration : IPluginConfiguration
     {
-        [NonSerialized]
-        private DalamudPluginInterface? pluginInterface;
-
         public int Version { get; set; }
 
         public string DefaultTriggerPhrase { get; set; } = string.Empty;
@@ -48,14 +45,9 @@ namespace PuppetMaster
         public void AddWhitelistedPlayer(WhitelistedPlayer whitelistedPlayer) => this.WhitelistedPlayers.Add(whitelistedPlayer);
         public void RemoveWhitelistedPlayer(WhitelistedPlayer whitelistedPlayer) => this.WhitelistedPlayers.Remove(whitelistedPlayer);
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
-        {
-            this.pluginInterface = pluginInterface;
-        }
-
         public void Save()
         {
-            pluginInterface!.SavePluginConfig(this);
+            Plugin.PluginInterface!.SavePluginConfig(this);
         }
     }
 }

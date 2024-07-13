@@ -16,7 +16,6 @@ namespace PuppetMaster
 {
     public class Service
     {
-        public static Plugin? plugin;
         public static Configuration? configuration;
         public static Regex? Rx;
         public static Regex? CustomRx;
@@ -199,13 +198,7 @@ namespace PuppetMaster
 
         public static void InitializeConfig()
         {
-            if (!(Service.PluginInterface.GetPluginConfig() is Configuration configuration))
-            {
-                configuration = new Configuration();
-            }
-
-            Service.configuration = configuration;
-            Service.configuration.Initialize(Service.PluginInterface);
+            Service.configuration = Plugin.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
             if (Service.configuration.DefaultEnabledChannels.Count != 23)
             {
@@ -333,8 +326,6 @@ namespace PuppetMaster
             Service.configuration.Save();
         }
 
-        [PluginService]
-        public static DalamudPluginInterface PluginInterface { get; private set; } = null;
 
         [PluginService]
         public static ICommandManager? CommandManager { get; private set; } = null;

@@ -180,16 +180,16 @@ namespace PuppetMaster
 
             DefaultInterpolatedStringHandler interpolatedStringHandler = new DefaultInterpolatedStringHandler(0, 1);
             interpolatedStringHandler.AppendFormatted<Service.ParsedTextCommand>(parsedTextCommand);
-            Chat.SendMessage(interpolatedStringHandler.ToStringAndClear());
+            Chat.Instance.SendMessage(interpolatedStringHandler.ToStringAndClear());
         }
 
-        public static void OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
+        public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (isHandled)
                 return;
 
-            Service.Logger.Info("[PUPPETMASTER] Player payload : ");
-            Service.Logger.Info(sender.ToJson());
+            // Service.Logger.Info("[PUPPETMASTER] Player payload : ");
+            // Service.Logger.Info(sender.ToJson());
 
             object? player_data = GetRealPlayerNameFromSenderPayloads(sender.Payloads);
 
@@ -203,11 +203,11 @@ namespace PuppetMaster
             }
             else
             {
-                Service.Logger.Info("[PUPPETMASTER] Error parsing player payload, not an array.");
+                // Service.Logger.Info("[PUPPETMASTER] Error parsing player payload, not an array.");
                 return;
             }
 
-            Service.Logger.Info("[PUPPETMASTER] Found player : " + (player_name ?? "no player found"));
+            // Service.Logger.Info("[PUPPETMASTER] Found player : " + (player_name ?? "no player found"));
 
             if (player_name == null || player_world == null)
                 return;
@@ -219,7 +219,7 @@ namespace PuppetMaster
         {
             if (payloads.Count == 0)
             {
-                Service.Logger.Info("[PUPPETMASTER] No Payloads");
+                // Service.Logger.Info("[PUPPETMASTER] No Payloads");
                 return null;
             }
 
@@ -227,19 +227,19 @@ namespace PuppetMaster
 
             if (foundPlayerPayload != null)
             {
-                Service.Logger.Info("[PUPPETMASTER] Found player payload");
+                // Service.Logger.Info("[PUPPETMASTER] Found player payload");
 
                 PlayerPayload? playerPayload = foundPlayerPayload as PlayerPayload;
 
                 if (playerPayload == null)
                 {
-                    Service.Logger.Info("[PUPPETMASTER] Player payload error");
+                    // Service.Logger.Info("[PUPPETMASTER] Player payload error");
                     return null;
                 }
 
-                Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World);
-                Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.InternalName);
-                Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.Name);
+                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World);
+                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.InternalName);
+                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.Name);
 
                 object[] playerDataArray = new object[2];
 
@@ -253,7 +253,7 @@ namespace PuppetMaster
 
                 if (foundRawTextPayloads.Count() == 0)
                 {
-                    Service.Logger.Info("[PUPPETMASTER] No raw text payload found");
+                    // Service.Logger.Info("[PUPPETMASTER] No raw text payload found");
                     return null;
                 }
 
@@ -265,18 +265,11 @@ namespace PuppetMaster
                     {
                         string? possiblePlayerName = textPayload.Text;
 
-                        Service.Logger.Info("[PUPPETMASTER] Found raw text payload : " + possiblePlayerName);
+                        // Service.Logger.Info("[PUPPETMASTER] Found raw text payload : " + possiblePlayerName);
 
                         if (possiblePlayerName == null || possiblePlayerName.Split(' ').Count() != 2)
                         {
                             continue;
-                        }
-
-                        unsafe
-                        {
-                            // World world = CharacterManager.Instance()->BattleCharaMemory->Character.HomeWorld);
-                            
-                            Service.Logger.Info("[PUPPETMASTER] TEST ===================== " + CharacterManager.Instance()->BattleCharaMemory->Character.HomeWorld);
                         }
 
                         object[] playerDataArray = new object[2];
@@ -287,7 +280,7 @@ namespace PuppetMaster
                         return playerDataArray;
                     } else
                     {
-                        Service.Logger.Info("[PUPPETMASTER] Raw text payload error");
+                        // Service.Logger.Info("[PUPPETMASTER] Raw text payload error");
                     }
                 }
 

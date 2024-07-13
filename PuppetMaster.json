@@ -3,7 +3,7 @@
     "Author": "DodingDaga, AS",
     "Name": "Puppet Master - A.S. Fork",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "7.1.2.1",
+    "AssemblyVersion": "7.2.0.0",
     "Description": "Let people control your character through chat.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
@@ -16,7 +16,7 @@
       "plugin",
       "commands"
     ],
-    "DalamudApiLevel": 9,
+    "DalamudApiLevel": 10,
     "LoadPriority": 0,
     "Punchline": "Let others tell you what to do.",
     "IsHide": false,
@@ -24,8 +24,8 @@
     "DownloadCount": 0,
     "LastUpdated": 0,
     "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nDrag and Drop organization for both whitelist and blacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks\nReady for Dalamud API 10\nPlayer world check\nWhitelist behavior changed",
-    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.1.2.1/latest.zip"
+    "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.2.0.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.2.0.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.2.0.0/latest.zip"
   }
 ]

@@ -1,6 +1,6 @@
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
+using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
@@ -11,6 +11,8 @@ namespace PuppetMaster
 {
     public sealed class Plugin : IDalamudPlugin
     {
+        [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+
         public string Name => "PuppetMaster - A.S Fork";
 
         private readonly List<Tuple<string, string>> commandNames = new()
@@ -24,11 +26,10 @@ namespace PuppetMaster
         public ConfigWindow ConfigWindow { get; init; } = new();
 
 
-        public Plugin(DalamudPluginInterface pluginInterface)
+        public Plugin()
         {
-            pluginInterface.Create<Service>(Array.Empty<object>());
+            PluginInterface.Create<Service>(Array.Empty<object>());
 
-            Service.plugin = this;
             Service.InitializeConfig();
 
             WindowSystem.AddWindow(ConfigWindow);
@@ -41,10 +42,10 @@ namespace PuppetMaster
                 });
             }
 
-            Service.ChatGui.ChatMessage += new IChatGui.OnMessageDelegate(PuppetMaster.ChatHandler.OnChatMessage);
+            Service.ChatGui.ChatMessage += new IChatGui.OnMessageDelegate(ChatHandler.OnChatMessage);
 
-            Service.PluginInterface.UiBuilder.Draw += DrawUI;
-            Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            PluginInterface.UiBuilder.Draw += DrawUI;
+            PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
 
             Service.InitializeEmotes();
             Service.InitializeWorlds();
@@ -54,7 +55,7 @@ namespace PuppetMaster
         {
             this.WindowSystem.RemoveAllWindows();
 
-            Service.ChatGui.ChatMessage -= new IChatGui.OnMessageDelegate(PuppetMaster.ChatHandler.OnChatMessage);
+            Service.ChatGui.ChatMessage -= new IChatGui.OnMessageDelegate(ChatHandler.OnChatMessage);
 
             foreach (var CommandName in commandNames)
             {
