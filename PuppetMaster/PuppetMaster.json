@@ -6,8 +6,7 @@
   "InternalName": "puppetmaster",
   "ApplicableVersion": "any",
   "Tags": [
-    "sample",
     "plugin",
-    "goats"
+    "emote"
   ]
 }
