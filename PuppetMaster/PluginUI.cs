@@ -14,7 +14,6 @@ namespace PuppetMaster
         public const String Name = "Puppet Master settings";
 
         private static Service.ParsedTextCommand TextCommand = new();
-        private static bool IsEditOpen = false;
 
         public ConfigWindow() : base(Name)
         {
