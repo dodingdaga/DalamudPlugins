@@ -1,0 +1,13 @@
+{
+  "Author": "DodingDaga",
+  "Name": "Puppet Master",
+  "Punchline": "Let others tell you what to do.",
+  "Description": "For the lulz",
+  "InternalName": "puppetmaster",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "sample",
+    "plugin",
+    "goats"
+  ]
+}
