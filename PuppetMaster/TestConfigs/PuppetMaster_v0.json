@@ -1,0 +1,152 @@
+{
+  "$type": "PuppetMaster.Configuration, PuppetMaster",
+  "Version": 0,
+  "TriggerPhrase": "please do",
+  "AllowSit": false,
+  "MotionOnly": true,
+  "AllowAllCommands": false,
+  "UseRegex": false,
+  "CustomPhrase": "",
+  "ReplaceMatch": "",
+  "TestInput": "",
+  "EnabledChannels": [
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 37,
+      "Enabled": false,
+      "Name": "CWLS1"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 101,
+      "Enabled": false,
+      "Name": "CWLS2"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 102,
+      "Enabled": false,
+      "Name": "CWLS3"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 103,
+      "Enabled": false,
+      "Name": "CWLS4"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 104,
+      "Enabled": false,
+      "Name": "CWLS5"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 105,
+      "Enabled": false,
+      "Name": "CWLS6"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 106,
+      "Enabled": false,
+      "Name": "CWLS7"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 107,
+      "Enabled": false,
+      "Name": "CWLS8"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 16,
+      "Enabled": false,
+      "Name": "LS1"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 17,
+      "Enabled": false,
+      "Name": "LS2"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 18,
+      "Enabled": false,
+      "Name": "LS3"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 19,
+      "Enabled": false,
+      "Name": "LS4"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 20,
+      "Enabled": false,
+      "Name": "LS5"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 21,
+      "Enabled": false,
+      "Name": "LS6"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 22,
+      "Enabled": false,
+      "Name": "LS7"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 23,
+      "Enabled": false,
+      "Name": "LS8"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 13,
+      "Enabled": false,
+      "Name": "Tell"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 10,
+      "Enabled": true,
+      "Name": "Say"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 14,
+      "Enabled": false,
+      "Name": "Party"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 30,
+      "Enabled": false,
+      "Name": "Yell"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 11,
+      "Enabled": false,
+      "Name": "Shout"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 24,
+      "Enabled": false,
+      "Name": "Free Company"
+    },
+    {
+      "$type": "PuppetMaster.ChannelSetting, PuppetMaster",
+      "ChatType": 15,
+      "Enabled": false,
+      "Name": "Alliance"
+    }
+  ]
+}
