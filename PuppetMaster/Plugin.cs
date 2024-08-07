@@ -1,6 +1,7 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
+
 using System;
 
 namespace PuppetMaster
@@ -8,7 +9,7 @@ namespace PuppetMaster
     public class Plugin : IDalamudPlugin
     {
         public static String Name => "PuppetMaster";
-        private const String commandName = "/puppetmaster";
+        private const String CommandName = "/puppetmaster";
         public WindowSystem windowSystem = new("PuppetMaster");
         public ConfigWindow configWindow = new();
 
@@ -17,14 +18,13 @@ namespace PuppetMaster
             // Service
             pluginInterface.Create<Service>();
             Service.plugin = this;
-            //Service.commonBase = new XivCommonBase();
             
             // Configuration
             Service.InitializeConfig();
             windowSystem.AddWindow(configWindow);
 
             // Handlers
-            Service.CommandManager.AddHandler(commandName, new CommandInfo(OnCommand)
+            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Open Puppet Master settings"
             });
@@ -40,15 +40,13 @@ namespace PuppetMaster
         public void Dispose()
         {
             windowSystem.RemoveAllWindows();
-            //Service.commonBase?.Dispose();
             Service.ChatGui.ChatMessage -= ChatHandler.OnChatMessage;
-            Service.CommandManager.RemoveHandler(commandName);
+            Service.CommandManager.RemoveHandler(CommandName);
             GC.SuppressFinalize(this);
         }
 
         private void OnCommand(String command, String args)
         {
-            // in response to the slash command, just display our main ui
             DrawConfigUI();
         }
 

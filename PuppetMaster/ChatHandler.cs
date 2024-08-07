@@ -1,56 +1,79 @@
-﻿using Dalamud.Game.Text;
+using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Utility;
+
 using System;
 using System.Text.RegularExpressions;
 
 namespace PuppetMaster
 {
-    public class ChatHandler
+    public partial class ChatHandler
     {
         public ChatHandler()
         {
         }
 
-        public static void DoCommand(XivChatType type, String message)
+        public static void DoCommand(int index, XivChatType type, String message)
         {
+            if (Service.configuration == null) return;
+
             // Check if part of enabled channels
-            if (!Service.enabledChannels.Contains(type)) return;
+            if (!Service.configuration.Reactions[index].EnabledChannels.Contains((int)type)) return;
 
             // Find command in message
-            bool usingRegex = (Service.configuration!.UseRegex && Service.CustomRx != null);
-            MatchCollection matches = usingRegex ? Service.CustomRx!.Matches(message) : Service.Rx!.Matches(message);
+            var usingRegex = (Service.configuration.Reactions[index].UseRegex && Service.configuration.Reactions[index].CustomRx != null);
+            var matches = usingRegex ? Service.configuration.Reactions[index].CustomRx!.Matches(message) : Service.configuration.Reactions[index].Rx!.Matches(message);
             if (matches.Count == 0) return;
-            String command = String.Empty;
+            var command = string.Empty;
             try
             {
                 command = usingRegex ?
-                    Service.CustomRx!.Replace(matches[0].Value, Service.configuration.ReplaceMatch) :
-                    Service.Rx!.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
+                    Service.configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, Service.configuration.Reactions[index].ReplaceMatch) :
+                    Service.configuration.Reactions[index].Rx!.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
             } catch (Exception) { }
-            Service.ParsedTextCommand textCommand = Service.FormatCommand(command);
-            if (String.IsNullOrEmpty(textCommand.Main)) return;
+            var textCommand = Service.FormatCommand(command);
+            if (string.IsNullOrEmpty(textCommand.Main)) return;
 
             // Process emote
-            bool isEmote = Service.Emotes.Contains(textCommand.Main);
+            var isEmote = Service.Emotes.Contains(textCommand.Main);
             if (isEmote)
             {
-                if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration.AllowSit)
+                if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration.Reactions[index].AllowSit)
                     textCommand.Main = "/no";
-                if (Service.configuration.MotionOnly)
+                if (Service.configuration.Reactions[index].MotionOnly)
                     textCommand.Args = "motion";
             }
 
             // Execute command
-            if (Service.configuration.AllowAllCommands || isEmote)
-                Chat.SendMessage($"{textCommand}");
+            if (Service.configuration.Reactions[index].AllowAllCommands || isEmote)
+            {
+                var lines = MyRegex().Split(textCommand.ToString());
+                foreach (var line in lines)
+                    Chat.SendMessage($"{line}");
+            }
         }
 
-#pragma warning disable IDE0060
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
+            if (Service.configuration == null) return;
+
+            if (Service.configuration.DebugLogTypes && type != XivChatType.Debug)
+            {
+                var prefix = int.TryParse(type.ToString(), out var number)?"[" + number + "]":"[" + ((int)type) + "][" + type + "]";
+                prefix += (sender.ToString().IsNullOrEmpty() ? "" : "<" + sender + "> ");
+                Service.ChatGui.Print(prefix+" "+message);
+            }
+
             if (isHandled) return;
-            DoCommand(type, message.ToString());
+
+            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+            {
+                if (Service.configuration.Reactions[index].Enabled)
+                    DoCommand(index, type, message.ToString());
+            }
         }
-#pragma warning restore IDE0060
+
+        [GeneratedRegex("\r\n|\r|\n")]
+        private static partial Regex MyRegex();
     }
 }

@@ -1,33 +1,63 @@
-﻿using Dalamud.Configuration;
+using Dalamud.Configuration;
 using Dalamud.Plugin;
-using Dalamud.Game.Text;
+
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace PuppetMaster
 {
+    public class ConfigVersion
+    {
+        public const int CURRENT = 1;
+    }
+
     public class ChannelSetting
     {
-        public XivChatType ChatType { get; set; }
+        public int ChatType { get; set; }
+        public string Name { get; set; } = string.Empty;
+        //---- Deprecated, setting will be managed per Reaction
         public bool Enabled { get; set; }
-        public String Name { get; set; } = String.Empty;
+    }
+
+    public class Reaction
+    {
+        public bool Enabled { get; set; } = false;
+        public string Name { get; set; } = "";
+        public string TriggerPhrase { get; set; } = "";
+        public bool AllowSit { get; set; } = false;
+        public bool MotionOnly { get; set; } = true;
+        public bool AllowAllCommands { get; set; } = false;
+        public bool UseRegex { get; set; } = false;
+        public string CustomPhrase { get; set; } = string.Empty;
+        public string ReplaceMatch { get; set; } = string.Empty;
+        public string TestInput { get; set; } = string.Empty;
+        public List<int> EnabledChannels { get; set; } = [];
+        public Regex? Rx;
+        public Regex? CustomRx;
     }
 
     [Serializable]
     public class Configuration : IPluginConfiguration
     {
-        public int Version { get; set; } = 0;
+        public int Version { get; set; } = ConfigVersion.CURRENT;
 
-        public String TriggerPhrase { get; set; } = "please do";
+        //---- Version 0 Config [DEPRECATED, WILL NOT BE USED]
+        public string TriggerPhrase { get; set; } = "please do";
         public bool AllowSit { get; set; } = false;
         public bool MotionOnly { get; set; } = true;
         public bool AllowAllCommands { get; set; } = false;
         public bool UseRegex { get; set; } = false;
-        public String CustomPhrase { get; set; } = String.Empty;
-        public String ReplaceMatch { get; set; } = String.Empty;
-        public String TestInput { get; set; } = String.Empty;
+        public string CustomPhrase { get; set; } = string.Empty;
+        public string ReplaceMatch { get; set; } = string.Empty;
+        public string TestInput { get; set; } = string.Empty;
 
+        //---- Version 1 Config
         public List<ChannelSetting> EnabledChannels { get; set; } = [];
+        public List<ChannelSetting> CustomChannels { get; set; } = [];
+        public List<Reaction> Reactions { get; set; } = [];
+        public int CurrentReactionEdit = -1;
+        public bool DebugLogTypes { get; set; } = false;
 
         [NonSerialized]
         private IDalamudPluginInterface? pluginInterface;

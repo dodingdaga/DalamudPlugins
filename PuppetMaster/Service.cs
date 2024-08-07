@@ -1,10 +1,12 @@
-﻿using Dalamud.Game;
+using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.Text;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+
 using Lumina.Excel.GeneratedSheets;
+
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -15,9 +17,6 @@ namespace PuppetMaster
     {
         public static Plugin? plugin;
         public static Configuration? configuration;
-        public static Regex? Rx;
-        public static Regex? CustomRx;
-        public static List<XivChatType> enabledChannels = [];
         public static Lumina.Excel.ExcelSheet<Emote>? emoteCommands;
         public static HashSet<String> Emotes = [];
 
@@ -46,57 +45,66 @@ namespace PuppetMaster
             }
         }
 
-        private static String GetDefaultRegex()
+        private static String GetDefaultRegex(int index)
         {
-            return @"(?i)\b(?:" + configuration!.TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))";
+            return @"(?i)\b(?:" + configuration?.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))";
         }
         public static String GetDefaultReplaceMatch()
         {
             return @"/$1$2";
         }
 
-        public static void InitializeRegex(bool reload=false)
+        public static void InitializeRegex()
         {
-            if (configuration!.UseRegex)
+            for (var i = 0; i < configuration?.Reactions.Count; i++)
+                InitializeRegex(i);
+        }
+
+        public static void InitializeRegex(int index, bool reload=false)
+        {
+            if (configuration == null || index < 0 || configuration.Reactions.Count == 0)
+                return;
+
+            if (configuration.Reactions[index].UseRegex)
             {
-                if (String.IsNullOrEmpty(configuration.CustomPhrase))
+                if (string.IsNullOrEmpty(configuration.Reactions[index].CustomPhrase))
                 {
-                    configuration.CustomPhrase = GetDefaultRegex();
-                    configuration.ReplaceMatch = GetDefaultReplaceMatch();
+                    configuration.Reactions[index].CustomPhrase = GetDefaultRegex(index);
+                    configuration.Reactions[index].ReplaceMatch = GetDefaultReplaceMatch();
                     configuration.Save();
                     reload = true;
                 }
-                if (CustomRx == null || reload)
-                    try { CustomRx = new Regex(configuration.CustomPhrase); } catch (Exception) { }
+                if (configuration.Reactions[index].CustomRx == null || reload)
+                    try { configuration.Reactions[index].CustomRx = new Regex(configuration.Reactions[index].CustomPhrase); } catch (Exception) { }
             }
-            else if (Rx == null || reload)
-                try { Rx = new Regex(GetDefaultRegex()); } catch (Exception) { }
+            else if (configuration.Reactions[index].Rx == null || reload)
+                try { configuration.Reactions[index].Rx = new Regex(GetDefaultRegex(index)); } catch (Exception) { }
         }
 
         public struct ParsedTextCommand
         {
             public ParsedTextCommand() {}
-            public String Main = String.Empty;
-            public String Args = String.Empty;
+            public string Main = string.Empty;
+            public string Args = string.Empty;
 
-            public override readonly String ToString()
+            public override readonly string ToString()
             {
                 return (Main + " " + Args).Trim();
             }
         }
 
-        public static ParsedTextCommand FormatCommand(String command)
+        public static ParsedTextCommand FormatCommand(string command)
         {
             ParsedTextCommand textCommand = new();
-            if (command != String.Empty)
+            if (command != string.Empty)
             {
                 command = command.Trim();
                 if (command.StartsWith('/'))
                 {
                     command = command.Replace('[', '<').Replace(']', '>');
-                    int space = command.IndexOf(' ');
+                    var space = command.IndexOf(' ');
                     textCommand.Main = (space == -1 ? command : command[..space]).ToLower();
-                    textCommand.Args = (space == -1 ? String.Empty : command[(space + 1)..]);
+                    textCommand.Args = (space == -1 ? string.Empty : command[(space + 1)..]);
                 }
                 else
                     textCommand.Main = command;
@@ -104,21 +112,24 @@ namespace PuppetMaster
             return textCommand;
         }
 
-        public static ParsedTextCommand GetTestInputCommand()
+        public static ParsedTextCommand GetTestInputCommand(int index)
         {
             ParsedTextCommand result = new();
-            InitializeRegex();
 
-            bool usingRegex = (configuration!.UseRegex && CustomRx != null);
-            MatchCollection matches = usingRegex ? CustomRx!.Matches(configuration!.TestInput) : Rx!.Matches(configuration!.TestInput);
+            if (configuration == null) return result;
+
+            InitializeRegex(index);
+
+            var usingRegex = (configuration.Reactions[index].UseRegex && configuration.Reactions[index].CustomRx != null);
+            var matches = usingRegex ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput) : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
             if (matches.Count != 0)
             {
                 result.Args = matches[0].ToString();
                 try
                 {
                     result.Main = usingRegex ?
-                    CustomRx!.Replace(matches[0].Value, configuration.ReplaceMatch) :
-                    Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch()); ;
+                    configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, configuration.Reactions[index].ReplaceMatch) :
+                    configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch()); ;
                 }
                 catch (Exception) { }
             }
@@ -126,48 +137,98 @@ namespace PuppetMaster
             return result;
         }
 
+        private static void migrateConfiguration(ref Configuration configuration)
+        {
+            if (configuration.Version == 0)
+            {
+                var enabledChannels = new List<int>();
+                foreach (var channel in configuration.EnabledChannels)
+                {
+                    if (channel.Enabled)
+                        enabledChannels.Add(channel.ChatType);
+                }
+                configuration.Reactions =
+                    [
+                        new() {
+                            Enabled = true,
+                            Name = "Reaction",
+                            TriggerPhrase = configuration.TriggerPhrase,
+                            AllowSit = configuration.AllowSit,
+                            MotionOnly = configuration.MotionOnly,
+                            AllowAllCommands = configuration.AllowAllCommands,
+                            UseRegex = configuration.UseRegex,
+                            CustomPhrase = configuration.CustomPhrase,
+                            ReplaceMatch = configuration.ReplaceMatch,
+                            TestInput = configuration.TestInput,
+                            EnabledChannels = enabledChannels,
+                        }
+                    ];
+            }
+        }
+
         public static void InitializeConfig()
         {
             configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             configuration.Initialize(PluginInterface);
 
+            if (configuration.Version < ConfigVersion.CURRENT)
+            {
+                migrateConfiguration(ref configuration);
+                configuration.Version = ConfigVersion.CURRENT;
+            }
+
             if (configuration.EnabledChannels.Count != CHANNEL_COUNT)
             {
                 configuration.EnabledChannels =
                 [
-                    new() {ChatType = XivChatType.CrossLinkShell1, Name = "CWLS1"},
-                    new() {ChatType = XivChatType.CrossLinkShell2, Name = "CWLS2"},
-                    new() {ChatType = XivChatType.CrossLinkShell3, Name = "CWLS3"},
-                    new() {ChatType = XivChatType.CrossLinkShell4, Name = "CWLS4"},
-                    new() {ChatType = XivChatType.CrossLinkShell5, Name = "CWLS5"},
-                    new() {ChatType = XivChatType.CrossLinkShell6, Name = "CWLS6"},
-                    new() {ChatType = XivChatType.CrossLinkShell7, Name = "CWLS7"},
-                    new() {ChatType = XivChatType.CrossLinkShell8, Name = "CWLS8"},
-                    new() {ChatType = XivChatType.Ls1, Name = "LS1"},
-                    new() {ChatType = XivChatType.Ls2, Name = "LS2"},
-                    new() {ChatType = XivChatType.Ls3, Name = "LS3"},
-                    new() {ChatType = XivChatType.Ls4, Name = "LS4"},
-                    new() {ChatType = XivChatType.Ls5, Name = "LS5"},
-                    new() {ChatType = XivChatType.Ls6, Name = "LS6"},
-                    new() {ChatType = XivChatType.Ls7, Name = "LS7"},
-                    new() {ChatType = XivChatType.Ls8, Name = "LS8"},
-                    new() {ChatType = XivChatType.TellIncoming, Name = "Tell"},
-                    new() {ChatType = XivChatType.Say, Name = "Say", Enabled = true},
-                    new() {ChatType = XivChatType.Party, Name = "Party"},
-                    new() {ChatType = XivChatType.Yell, Name = "Yell"},
-                    new() {ChatType = XivChatType.Shout, Name = "Shout"},
-                    new() {ChatType = XivChatType.FreeCompany, Name = "Free Company"},
-                    new() {ChatType = XivChatType.Alliance, Name = "Alliance"}
+                    new() {ChatType = (int)XivChatType.CrossLinkShell1, Name = "CWLS1"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell2, Name = "CWLS2"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell3, Name = "CWLS3"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell4, Name = "CWLS4"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell5, Name = "CWLS5"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell6, Name = "CWLS6"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell7, Name = "CWLS7"},
+                    new() {ChatType = (int)XivChatType.CrossLinkShell8, Name = "CWLS8"},
+                    new() {ChatType = (int)XivChatType.Ls1, Name = "LS1"},
+                    new() {ChatType = (int)XivChatType.Ls2, Name = "LS2"},
+                    new() {ChatType = (int)XivChatType.Ls3, Name = "LS3"},
+                    new() {ChatType = (int)XivChatType.Ls4, Name = "LS4"},
+                    new() {ChatType = (int)XivChatType.Ls5, Name = "LS5"},
+                    new() {ChatType = (int)XivChatType.Ls6, Name = "LS6"},
+                    new() {ChatType = (int)XivChatType.Ls7, Name = "LS7"},
+                    new() {ChatType = (int)XivChatType.Ls8, Name = "LS8"},
+                    new() {ChatType = (int)XivChatType.TellIncoming, Name = "Tell"},
+                    new() {ChatType = (int)XivChatType.Say, Name = "Say"},
+                    new() {ChatType = (int)XivChatType.Party, Name = "Party"},
+                    new() {ChatType = (int)XivChatType.Yell, Name = "Yell"},
+                    new() {ChatType = (int)XivChatType.Shout, Name = "Shout"},
+                    new() {ChatType = (int)XivChatType.FreeCompany, Name = "Free Company"},
+                    new() {ChatType = (int)XivChatType.Alliance, Name = "Alliance"}
                 ];
             }
 
-            for (int i = 0; i < CHANNEL_COUNT; ++i)
+            InitializeRegex();
+
+            if (configuration.Reactions.Count == 0)
             {
-                if (configuration.EnabledChannels[i].Enabled)
-                    enabledChannels.Add(configuration.EnabledChannels[i].ChatType);
+                var reaction = new Reaction();
+                reaction.Enabled = true;
+                reaction.Name = "Reaction";
+                reaction.TriggerPhrase = "please do";
+                reaction.EnabledChannels.Add((int)XivChatType.Say);
+                configuration.Reactions.Add(reaction);
             }
 
-            InitializeRegex();
+            if (configuration.CustomChannels.Count == 0)
+            {
+                var channelSetting = new ChannelSetting();
+                channelSetting.Name = "SystemMessage";
+                channelSetting.ChatType = 57;
+                configuration.CustomChannels.Add(channelSetting);
+            }
+
+            // Always set to false on load
+            configuration.DebugLogTypes = false;
 
             configuration.Save();
         }
