@@ -26,7 +26,11 @@ namespace PuppetMaster
             // Handlers
             Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
-                HelpMessage = "Open Puppet Master settings"
+                HelpMessage = @"List of supported PuppetMaster commands
+
+/puppetmaster - open settings dialog
+/puppetmaster on|off - enable or disable all reactions
+/puppetmaster on|off ReactionName - enable or disable reactions with name=ReactionName"
             });
             Service.ChatGui.ChatMessage += ChatHandler.OnChatMessage;
             Service.PluginInterface.UiBuilder.Draw += DrawUI;
@@ -47,7 +51,26 @@ namespace PuppetMaster
 
         private void OnCommand(String command, String args)
         {
-            DrawConfigUI();
+            if (string.IsNullOrEmpty(args))
+                DrawConfigUI();
+            else
+            {
+                var ptc = Service.FormatCommand($"/{args}");
+#if DEBUG
+                Service.ChatGui.Print($"PARSED TEXT COMMAND: {ptc}");
+#endif
+                var enableReactions = (bool enable) =>
+                {
+                    if (string.IsNullOrEmpty(ptc.Args))
+                        Service.SetEnabledAll(enable);
+                    else
+                        Service.SetEnabled(ptc.Args, enable);
+                };
+                if (ptc.Main.Equals("on"))
+                    enableReactions(true);
+                else if (ptc.Main.Equals("off"))
+                    enableReactions(false);
+            }
         }
 
         private void DrawUI()

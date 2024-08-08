@@ -45,6 +45,25 @@ namespace PuppetMaster
             }
         }
 
+        public static void SetEnabledAll(bool enabled=true)
+        {
+            for(int i = 0; i < configuration?.Reactions.Count; i++)
+                configuration.Reactions[i].Enabled = enabled;
+            configuration?.Save();
+        }
+
+        public static void SetEnabled(string name, bool enabled = true, StringComparison sc = StringComparison.Ordinal)
+        {
+            for (int i = 0;i < configuration?.Reactions.Count;i++)     
+            {
+                if (configuration.Reactions[i].Name.Equals(name,sc))
+                {
+                    configuration.Reactions[i].Enabled = enabled;
+                }
+            }
+            configuration?.Save();
+        }
+
         public static bool IsValidReactionIndex(int index)
         {
             return (0 <= index && index < configuration?.Reactions.Count);
@@ -67,7 +86,7 @@ namespace PuppetMaster
 
         public static void InitializeRegex(int index, bool reload=false)
         {
-            if (configuration == null || !IsValidReactionIndex(index)) return;
+            if (configuration == null) return;
 
             if (configuration.Reactions[index].UseRegex)
             {
@@ -143,6 +162,7 @@ namespace PuppetMaster
 
         private static void migrateConfiguration(ref Configuration configuration)
         {
+            // Version 0 to 1 migration
             if (configuration.Version == 0)
             {
                 var enabledChannels = new List<int>();
@@ -167,6 +187,7 @@ namespace PuppetMaster
                             EnabledChannels = enabledChannels,
                         }
                     ];
+                configuration.Version = 1;
             }
         }
 
@@ -178,7 +199,6 @@ namespace PuppetMaster
             if (configuration.Version < ConfigVersion.CURRENT)
             {
                 migrateConfiguration(ref configuration);
-                configuration.Version = ConfigVersion.CURRENT;
             }
 
             if (configuration.EnabledChannels.Count != CHANNEL_COUNT)
