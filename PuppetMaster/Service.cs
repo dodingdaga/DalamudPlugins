@@ -45,9 +45,14 @@ namespace PuppetMaster
             }
         }
 
+        public static bool IsValidReactionIndex(int index)
+        {
+            return (0 <= index && index < configuration?.Reactions.Count);
+        }
+
         private static String GetDefaultRegex(int index)
         {
-            return @"(?i)\b(?:" + configuration?.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))";
+            return configuration != null && IsValidReactionIndex(index)? @"(?i)\b(?:" + configuration.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))" : @"";
         }
         public static String GetDefaultReplaceMatch()
         {
@@ -62,8 +67,7 @@ namespace PuppetMaster
 
         public static void InitializeRegex(int index, bool reload=false)
         {
-            if (configuration == null || index < 0 || configuration.Reactions.Count == 0)
-                return;
+            if (configuration == null || !IsValidReactionIndex(index)) return;
 
             if (configuration.Reactions[index].UseRegex)
             {
@@ -116,7 +120,7 @@ namespace PuppetMaster
         {
             ParsedTextCommand result = new();
 
-            if (configuration == null) return result;
+            if (configuration == null || !IsValidReactionIndex(index)) return result;
 
             InitializeRegex(index);
 

@@ -31,25 +31,30 @@ namespace PuppetMaster
                     Service.configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, Service.configuration.Reactions[index].ReplaceMatch) :
                     Service.configuration.Reactions[index].Rx!.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
             } catch (Exception) { }
-            var textCommand = Service.FormatCommand(command);
-            if (string.IsNullOrEmpty(textCommand.Main)) return;
 
-            // Process emote
-            var isEmote = Service.Emotes.Contains(textCommand.Main);
-            if (isEmote)
-            {
-                if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration.Reactions[index].AllowSit)
-                    textCommand.Main = "/no";
-                if (Service.configuration.Reactions[index].MotionOnly)
-                    textCommand.Args = "motion";
-            }
 
-            // Execute command
-            if (Service.configuration.Reactions[index].AllowAllCommands || isEmote)
+            var lines = MyRegex().Split(command.ToString());
+            foreach (var line in lines)
             {
-                var lines = MyRegex().Split(textCommand.ToString());
-                foreach (var line in lines)
-                    Chat.SendMessage($"{line}");
+                var textCommand = Service.FormatCommand(line);
+                if (!string.IsNullOrEmpty(textCommand.Main))
+                {
+                    // Process emote
+                    var isEmote = Service.Emotes.Contains(textCommand.Main);
+                    if (isEmote)
+                    {
+                        if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration.Reactions[index].AllowSit)
+                            textCommand.Main = "/no";
+                        if (Service.configuration.Reactions[index].MotionOnly)
+                            textCommand.Args = "motion";
+                    }
+
+                    // Execute command
+                    if (Service.configuration.Reactions[index].AllowAllCommands || isEmote)
+                    {
+                        Chat.SendMessage($"{textCommand}");
+                    }
+                }
             }
         }
 
