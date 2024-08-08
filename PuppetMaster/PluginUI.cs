@@ -17,7 +17,6 @@ namespace PuppetMaster
 
         public ConfigWindow() : base(Name)
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, new Vector2(480, 640));
         }
 
         public void Dispose()
@@ -163,10 +162,12 @@ namespace PuppetMaster
         }
 
         public override void Draw()
-        {
+        {            
             if (Service.configuration == null) return;
 
             Service.InitializeRegex();
+
+            ImGui.SetNextWindowSize(new Vector2(480, 640), ImGuiCond.FirstUseEver);
 
             ImGui.BeginTabBar("PuppetMaster Config Tabs");
 
@@ -374,9 +375,7 @@ namespace PuppetMaster
                 }
                 ImGui.EndTabItem();
             }
-
-            
-
+        
             if (ImGui.BeginTabItem("Custom Channels"))
             {
 
@@ -415,6 +414,7 @@ namespace PuppetMaster
                 }
                 ImGui.EndTabItem();
             }
+            
             ImGui.EndTabBar();
         }
     }
