@@ -1,5 +1,4 @@
 using Dalamud.Game;
-using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.Text;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -54,7 +53,6 @@ namespace PuppetMaster
             if (configuration != null && configuration.Reactions.Count > 0)
                 ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction"+(configuration.Reactions.Count > 1 ? "s" : ""));
 #endif
-
         }
 
         public static void SetEnabled(string name, bool enabled = true, StringComparison sc = StringComparison.Ordinal)
@@ -81,7 +79,6 @@ namespace PuppetMaster
 #else
             configuration?.Save();
 #endif
-
         }
 
         public static bool IsValidReactionIndex(int index)
