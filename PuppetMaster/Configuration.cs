@@ -33,6 +33,8 @@ namespace PuppetMaster
         public string ReplaceMatch { get; set; } = string.Empty;
         public string TestInput { get; set; } = string.Empty;
         public List<int> EnabledChannels { get; set; } = [];
+        public List<string> CommandWhitelist { get; set; } = [];
+        public List<string> CommandBlacklist { get; set; } = [];
         public Regex? Rx;
         public Regex? CustomRx;
     }

@@ -49,8 +49,16 @@ namespace PuppetMaster
                             textCommand.Args = "motion";
                     }
 
+                    if (Service.configuration.Reactions[index].CommandBlacklist.Contains(textCommand.Main))
+                    {
+#if DEBUG
+                        Service.ChatGui.Print($"{textCommand.Main} in CommandBlacklist");
+#endif
+                        return;
+                    }
+
                     // Execute command
-                    if (Service.configuration.Reactions[index].AllowAllCommands || isEmote)
+                    if ( Service.configuration.Reactions[index].AllowAllCommands || isEmote || Service.configuration.Reactions[index].CommandWhitelist.Contains(textCommand.Main) )
                     {
                         Chat.SendMessage($"{textCommand}");
                     }
