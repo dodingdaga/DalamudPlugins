@@ -50,18 +50,38 @@ namespace PuppetMaster
             for(int i = 0; i < configuration?.Reactions.Count; i++)
                 configuration.Reactions[i].Enabled = enabled;
             configuration?.Save();
+#if DEBUG
+            if (configuration != null && configuration.Reactions.Count > 0)
+                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction"+(configuration.Reactions.Count > 1 ? "s" : ""));
+#endif
+
         }
 
         public static void SetEnabled(string name, bool enabled = true, StringComparison sc = StringComparison.Ordinal)
         {
+#if DEBUG
+            var found = 0;
+#endif
             for (int i = 0;i < configuration?.Reactions.Count;i++)     
             {
                 if (configuration.Reactions[i].Name.Equals(name,sc))
                 {
                     configuration.Reactions[i].Enabled = enabled;
+#if DEBUG
+                    found++;
+#endif
                 }
             }
+#if DEBUG
+            if (found>0)
+            {
+                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {found} reaction" + (found > 1 ? "s" : "") + $" with name={name}");
+                configuration?.Save();
+            }
+#else
             configuration?.Save();
+#endif
+
         }
 
         public static bool IsValidReactionIndex(int index)

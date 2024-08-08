@@ -67,9 +67,13 @@ namespace PuppetMaster
                         Service.SetEnabled(ptc.Args, enable);
                 };
                 if (ptc.Main.Equals("on"))
+                {
                     enableReactions(true);
+                }
                 else if (ptc.Main.Equals("off"))
+                {
                     enableReactions(false);
+                }
             }
         }
 
