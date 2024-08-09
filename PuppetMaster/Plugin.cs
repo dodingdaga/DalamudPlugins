@@ -21,6 +21,8 @@ namespace PuppetMaster
             
             // Configuration
             Service.InitializeConfig();
+            Service.InitializeRegex();
+            
             windowSystem.AddWindow(configWindow);
 
             // Handlers
@@ -37,6 +39,9 @@ namespace PuppetMaster
 
             // Excel sheets
             Service.InitializeEmotes();
+#if DEBUG
+            PuppetMaster.Chat.SendMessage("/clearlog");
+#endif
         }
 
         public void Dispose()
@@ -83,6 +88,7 @@ namespace PuppetMaster
         private void DrawConfigUI()
         {
             this.configWindow.IsOpen = true;
+            this.configWindow.PreloadTestResult();
         }
     }
 }

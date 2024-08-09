@@ -3,7 +3,7 @@ using Dalamud.Game.Text;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-
+using Dalamud.Utility;
 using Lumina.Excel.GeneratedSheets;
 
 using System;
@@ -44,14 +44,14 @@ namespace PuppetMaster
             }
         }
 
-        public static void SetEnabledAll(bool enabled=true)
+        public static void SetEnabledAll(bool enabled = true)
         {
-            for(int i = 0; i < configuration?.Reactions.Count; i++)
+            for (int i = 0; i < configuration?.Reactions.Count; i++)
                 configuration.Reactions[i].Enabled = enabled;
             configuration?.Save();
 #if DEBUG
             if (configuration != null && configuration.Reactions.Count > 0)
-                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction"+(configuration.Reactions.Count > 1 ? "s" : ""));
+                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction" + (configuration.Reactions.Count > 1 ? "s" : ""));
 #endif
         }
 
@@ -60,9 +60,9 @@ namespace PuppetMaster
 #if DEBUG
             var found = 0;
 #endif
-            for (int i = 0;i < configuration?.Reactions.Count;i++)     
+            for (int i = 0; i < configuration?.Reactions.Count; i++)
             {
-                if (configuration.Reactions[i].Name.Equals(name,sc))
+                if (configuration.Reactions[i].Name.Equals(name, sc))
                 {
                     configuration.Reactions[i].Enabled = enabled;
 #if DEBUG
@@ -71,7 +71,7 @@ namespace PuppetMaster
                 }
             }
 #if DEBUG
-            if (found>0)
+            if (found > 0)
             {
                 ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {found} reaction" + (found > 1 ? "s" : "") + $" with name={name}");
                 configuration?.Save();
@@ -86,9 +86,10 @@ namespace PuppetMaster
             return (0 <= index && index < configuration?.Reactions.Count);
         }
 
-        private static String GetDefaultRegex(int index)
+        public static String GetDefaultRegex(int index)
         {
-            return configuration != null && IsValidReactionIndex(index)? @"(?i)\b(?:" + configuration.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))" : @"";
+            return configuration != null && IsValidReactionIndex(index) ?
+                @"(?i)\b(?:" + configuration.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))" : @"";
         }
         public static String GetDefaultReplaceMatch()
         {
@@ -101,23 +102,12 @@ namespace PuppetMaster
                 InitializeRegex(i);
         }
 
-        public static void InitializeRegex(int index, bool reload=false)
+        public static void InitializeRegex(int index, bool reload = false)
         {
             if (configuration == null) return;
-
-            if (configuration.Reactions[index].UseRegex)
-            {
-                if (string.IsNullOrEmpty(configuration.Reactions[index].CustomPhrase))
-                {
-                    configuration.Reactions[index].CustomPhrase = GetDefaultRegex(index);
-                    configuration.Reactions[index].ReplaceMatch = GetDefaultReplaceMatch();
-                    configuration.Save();
-                    reload = true;
-                }
-                if (configuration.Reactions[index].CustomRx == null || reload)
-                    try { configuration.Reactions[index].CustomRx = new Regex(configuration.Reactions[index].CustomPhrase); } catch (Exception) { }
-            }
-            else if (configuration.Reactions[index].Rx == null || reload)
+            if (configuration.Reactions[index].UseRegex && (reload || configuration.Reactions[index].CustomRx == null))
+                try { configuration.Reactions[index].CustomRx = new Regex(configuration.Reactions[index].CustomPhrase); } catch (Exception) { }
+            else if ( reload || configuration.Reactions[index].Rx == null)
                 try { configuration.Reactions[index].Rx = new Regex(GetDefaultRegex(index)); } catch (Exception) { }
         }
 
@@ -156,9 +146,16 @@ namespace PuppetMaster
         {
             ParsedTextCommand result = new();
 
-            if (configuration == null || !IsValidReactionIndex(index)) return result;
+            if (configuration == null || !IsValidReactionIndex(index) ||
+                configuration.Reactions[index].TestInput.IsNullOrEmpty() ||
+                configuration.Reactions[index].TestInput.IsNullOrWhitespace()) return result;
 
-            InitializeRegex(index);
+#if DEBUG
+            if (configuration.Reactions[index].UseRegex)
+                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].CustomPhrase} Replace:{configuration.Reactions[index].ReplaceMatch} Test:{configuration.Reactions[index].TestInput}");
+            else
+                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].TriggerPhrase} Test:{configuration.Reactions[index].TestInput}");
+#endif
 
             var usingRegex = (configuration.Reactions[index].UseRegex && configuration.Reactions[index].CustomRx != null);
             var matches = usingRegex ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput) : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
@@ -169,7 +166,7 @@ namespace PuppetMaster
                 {
                     result.Main = usingRegex ?
                     configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, configuration.Reactions[index].ReplaceMatch) :
-                    configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch()); ;
+                    configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch());
                 }
                 catch (Exception) { }
             }
@@ -252,20 +249,12 @@ namespace PuppetMaster
 
             if (configuration.Reactions.Count == 0)
             {
-                var reaction = new Reaction();
-                reaction.Enabled = true;
-                reaction.Name = "Reaction";
-                reaction.TriggerPhrase = "please do";
-                reaction.EnabledChannels.Add((int)XivChatType.Say);
-                configuration.Reactions.Add(reaction);
+                configuration.Reactions.Add(new Reaction() { Name ="Reaction" });
             }
 
             if (configuration.CustomChannels.Count == 0)
             {
-                var channelSetting = new ChannelSetting();
-                channelSetting.Name = "SystemMessage";
-                channelSetting.ChatType = 57;
-                configuration.CustomChannels.Add(channelSetting);
+                configuration.CustomChannels.Add(new ChannelSetting() { Name = "SystemMessage", ChatType = 57 });
             }
 
             // Always set to false on load

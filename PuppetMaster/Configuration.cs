@@ -23,8 +23,8 @@ namespace PuppetMaster
     public class Reaction
     {
         public bool Enabled { get; set; } = false;
-        public string Name { get; set; } = "";
-        public string TriggerPhrase { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
+        public string TriggerPhrase { get; set; } = string.Empty;
         public bool AllowSit { get; set; } = false;
         public bool MotionOnly { get; set; } = true;
         public bool AllowAllCommands { get; set; } = false;

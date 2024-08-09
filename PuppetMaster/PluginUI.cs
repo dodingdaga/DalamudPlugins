@@ -13,6 +13,8 @@ namespace PuppetMaster
         public const String Name = "Puppet Master settings";
 
         private static Service.ParsedTextCommand TextCommand = new();
+        private static int CurrentReactionIndex;
+
 
         public ConfigWindow() : base(Name)
         {
@@ -21,6 +23,15 @@ namespace PuppetMaster
         public void Dispose()
         {
             GC.SuppressFinalize(this);
+        }
+
+        public void PreloadTestResult()
+        {
+            if (Service.configuration != null)
+            {
+                CurrentReactionIndex = Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit) ? Service.configuration.CurrentReactionEdit : -1;
+                TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+            }
         }
 
         private static void DrawReaction(int index)
@@ -60,7 +71,6 @@ namespace PuppetMaster
             if (ImGui.Button($"Delete##ReactionDelete##{index}"))
             {
                 Service.configuration.Reactions.RemoveAt(index);
-                Service.configuration.CustomChannels.RemoveAt(index);
                 Service.configuration.Save();
             }
         }
@@ -164,8 +174,6 @@ namespace PuppetMaster
         {            
             if (Service.configuration == null) return;
 
-            Service.InitializeRegex();
-
             ImGui.SetNextWindowSize(new Vector2(480, 640), ImGuiCond.FirstUseEver);
 
             ImGui.BeginTabBar("PuppetMaster Config Tabs");
@@ -174,9 +182,7 @@ namespace PuppetMaster
             {
                 if (ImGui.Button($"Add##ReactionAddButton"))
                 {
-                    Reaction reaction = new();
-                    reaction.Name = "Reaction";
-                    Service.configuration.Reactions.Add(reaction);
+                    Service.configuration.Reactions.Add(new Reaction() { Name = "Reaction" });
                     Service.configuration.Save();
                 }
 
@@ -198,13 +204,15 @@ namespace PuppetMaster
                 foreach (var reaction in Service.configuration.Reactions)
                     reactionNames.Add(reaction.Name);
 
-                var currentReactionIndex = Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit)? Service.configuration.CurrentReactionEdit : -1;
+                
 
                 ImGui.SetNextItemWidth(450);
-                if (ImGui.Combo("##ReactEditSelector", ref currentReactionIndex, [.. reactionNames], reactionNames.Count))
+                if (ImGui.Combo("##ReactEditSelector", ref CurrentReactionIndex, [.. reactionNames], reactionNames.Count))
                 {
-                    Service.configuration.CurrentReactionEdit = currentReactionIndex;
+                    Service.configuration.CurrentReactionEdit = CurrentReactionIndex;
                     Service.configuration.Save();
+                    Service.InitializeRegex(CurrentReactionIndex);
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                 }
 
                 ImGui.Spacing();
@@ -218,22 +226,19 @@ namespace PuppetMaster
                     ImGui.Text("Trigger");
                     ImGui.SameLine();
 
-                    var inputText = Service.configuration.Reactions[currentReactionIndex].UseRegex ? Service.configuration.Reactions[currentReactionIndex].CustomPhrase : Service.configuration.Reactions[currentReactionIndex].TriggerPhrase;
-                    if (ImGui.InputText("##Trigger", ref inputText, 500))
+                    var trigger = Service.configuration.Reactions[CurrentReactionIndex].UseRegex ? Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase;
+                    if (ImGui.InputText("##Trigger", ref trigger, 500))
                     {
-                        if (!Service.configuration.Reactions[currentReactionIndex].UseRegex)
-                        {
-                            Service.configuration.Reactions[currentReactionIndex].TriggerPhrase = inputText.Trim();
-                            Service.configuration.Save();
-                        }
+                        if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
+                            Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase = trigger;
                         else
-                        {
-                            Service.configuration.Reactions[currentReactionIndex].CustomPhrase = inputText.Trim();
-                            Service.configuration.Save();
-                        }
-                        Service.InitializeRegex(currentReactionIndex,true);
+                            Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase = trigger;
+
+                        Service.InitializeRegex(CurrentReactionIndex, true);
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        Service.configuration.Save();
                     }
-                    if (!Service.configuration.Reactions[currentReactionIndex].UseRegex)
+                    if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
                         if (ImGui.IsItemHovered())
                         {
@@ -245,17 +250,16 @@ namespace PuppetMaster
 
                     ImGui.Unindent(35);
 
-                    TextCommand = Service.GetTestInputCommand(currentReactionIndex);
-                    if (Service.configuration.Reactions[currentReactionIndex].UseRegex)
+                    var replaceMatch = Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch;
+                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
                         ImGui.Text("Replacement");
                         ImGui.SameLine();
-                        var replaceMatch = Service.configuration.Reactions[currentReactionIndex].ReplaceMatch;
                         if (ImGui.InputTextMultiline("##Replacement", ref replaceMatch, 500, new Vector2(350, 80)))
                         {
-                            Service.configuration.Reactions[currentReactionIndex].ReplaceMatch = replaceMatch;
+                            Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = replaceMatch;
                             Service.configuration.Save();
-                            TextCommand = Service.GetTestInputCommand(currentReactionIndex);
+                            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                         }
                     }
 
@@ -263,17 +267,17 @@ namespace PuppetMaster
                     ImGui.Text("Test");
                     ImGui.SameLine();
                     
-                    var testInput = Service.configuration.Reactions[currentReactionIndex].TestInput;
+                    var testInput = Service.configuration.Reactions[CurrentReactionIndex].TestInput;
                     if (ImGui.InputText("##TestInput", ref testInput, 500))
                     {
-                        Service.configuration.Reactions[currentReactionIndex].TestInput = testInput;
+                        Service.configuration.Reactions[CurrentReactionIndex].TestInput = testInput;
                         Service.configuration.Save();
-                        TextCommand = Service.GetTestInputCommand(currentReactionIndex);
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                     }
                     
                     ImGui.Unindent(45);
                     
-                    if (Service.configuration.Reactions[currentReactionIndex].UseRegex)
+                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
                         ImGui.Text($"Matched: {TextCommand.Args}");
                     }
@@ -284,71 +288,68 @@ namespace PuppetMaster
                     ImGui.Spacing();
                     ImGui.Spacing();
                     
-                    /*
-                    if (ImGui.Button("Send Test Input to Chat Window"))
-                    {
-                        if (!String.IsNullOrEmpty(Service.configuration.TestInput))
-                            Chat.SendMessage(Service.configuration.TestInput);
-                    }
-                    */
-                    
                     ImGui.Separator(); //----------------------------------------------
                     
-                    var useRegex = Service.configuration.Reactions[currentReactionIndex].UseRegex;
+                    var useRegex = Service.configuration.Reactions[CurrentReactionIndex].UseRegex;
                     if (ImGui.Checkbox("Use Regex", ref useRegex))
                     {
-                        Service.configuration.Reactions[currentReactionIndex].UseRegex = useRegex;
+                        Service.configuration.Reactions[CurrentReactionIndex].UseRegex = useRegex;
                         Service.configuration.Save();
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                     }
                     
-                    if (Service.configuration.Reactions[currentReactionIndex].UseRegex)
+                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
                         ImGui.SameLine();
                         if (ImGui.Button("Reset"))
                         {
-                            Service.configuration.Reactions[currentReactionIndex].CustomPhrase = string.Empty;
-                            Service.InitializeRegex(currentReactionIndex);
+                            Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase = replaceMatch = Service.GetDefaultRegex(CurrentReactionIndex);
+                            Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = trigger = Service.GetDefaultReplaceMatch();
+                            Service.InitializeRegex(CurrentReactionIndex, true);
+                            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                            Service.configuration.Save();
                         }
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("Initialize regex and replacement\nbased on current trigger phrase");
+                            ImGui.TextUnformatted("Initialize regex and replacement\nbased on current non-regex trigger phrase");
                             ImGui.EndTooltip();
                         }
                     }
                     
-                    var allowAllCommands = Service.configuration.Reactions[currentReactionIndex].AllowAllCommands;
+                    var allowAllCommands = Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands;
                     if (ImGui.Checkbox("Allow all text commands", ref allowAllCommands))
                     {
-                        Service.configuration.Reactions[currentReactionIndex].AllowAllCommands = allowAllCommands;
+                        Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands = allowAllCommands;
                         Service.configuration.Save();
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                     }
                    
-                    if (!Service.configuration.Reactions[currentReactionIndex].UseRegex)
+                    if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.BeginTooltip();
                             ImGui.Text("If command has subcommands, enclose sequence in parentheses.");
                             ImGui.Text("For placeholders, replace angle brackets with square brackets.");
-                            var found = Service.configuration.Reactions[currentReactionIndex].TriggerPhrase.IndexOf('|');
-                            var firstTriggerPhrase = found == -1 ? Service.configuration.Reactions[currentReactionIndex].TriggerPhrase : Service.configuration.Reactions[currentReactionIndex].TriggerPhrase[..found];
+                            var found = Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase.IndexOf('|');
+                            var firstTriggerPhrase = found == -1 ? Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase[..found];
                             ImGui.Text("Example: " + firstTriggerPhrase + " (ac \"Vercure\" [t])");
                             ImGui.EndTooltip();
                         }
                     }
                     
-                    var allowSit = Service.configuration.Reactions[currentReactionIndex].AllowSit;
+                    var allowSit = Service.configuration.Reactions[CurrentReactionIndex].AllowSit;
                     if (ImGui.Checkbox("Allow \"sit\" or \"groundsit\" requests", ref allowSit))
                     {
-                        Service.configuration.Reactions[currentReactionIndex].AllowSit = allowSit;
+                        Service.configuration.Reactions[CurrentReactionIndex].AllowSit = allowSit;
                         Service.configuration.Save();
                     }
                     
-                    var motionOnly = Service.configuration.Reactions[currentReactionIndex].MotionOnly;
+                    var motionOnly = Service.configuration.Reactions[CurrentReactionIndex].MotionOnly;
                     if (ImGui.Checkbox("Motion only", ref motionOnly))
                     {
-                        Service.configuration.Reactions[currentReactionIndex].MotionOnly = motionOnly;
+                        Service.configuration.Reactions[CurrentReactionIndex].MotionOnly = motionOnly;
                         Service.configuration.Save();
                     }
                     
@@ -360,28 +361,28 @@ namespace PuppetMaster
                     {
                         ImGui.Separator(); //----------------------------------------------
                         for (var channelIndex = 0; channelIndex < Service.configuration.CustomChannels.Count; ++channelIndex)
-                            DrawCustomChannelCheckbox(currentReactionIndex, channelIndex);
+                            DrawCustomChannelCheckbox(CurrentReactionIndex, channelIndex);
                     }
                     
                     ImGui.Separator(); //----------------------------------------------
                    
                     for (var channelIndex = 16; channelIndex < 23; ++channelIndex)
                     {
-                        DrawChannelCheckbox(currentReactionIndex, channelIndex);
+                        DrawChannelCheckbox(CurrentReactionIndex, channelIndex);
                     }
                     
                     ImGui.Separator(); //----------------------------------------------
                     
                     for (var channelIndex = 0; channelIndex < 8; ++channelIndex)
                     {
-                        DrawChannelCheckbox(currentReactionIndex,channelIndex);
+                        DrawChannelCheckbox(CurrentReactionIndex,channelIndex);
                     }
                     
                     ImGui.Separator(); //----------------------------------------------
                     
                     for (var channelIndex = 8; channelIndex < 16; ++channelIndex)
                     {
-                        DrawChannelCheckbox(currentReactionIndex,channelIndex);
+                        DrawChannelCheckbox(CurrentReactionIndex,channelIndex);
                     }
                 }
                 
@@ -410,8 +411,7 @@ namespace PuppetMaster
                 
                 if (ImGui.Button("Add##CustomChannelAdd"))
                 {
-                    ChannelSetting channel = new() { ChatType = (int)0, Name = "Custom", Enabled = false };
-                    Service.configuration.CustomChannels.Add(channel);
+                    Service.configuration.CustomChannels.Add( new ChannelSetting(){ChatType = (int)0, Name = "Custom", Enabled = false});
                     Service.configuration.Save();
                 }
                 
