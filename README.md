@@ -4,4 +4,3 @@ Add custom repo to your plugin sources
 ```
 https://raw.githubusercontent.com/dodingdaga/DalamudPlugins/main/PuppetMaster.json
 ```
-[Plugin source code](https://github.com/dodingdaga/DalamudPluginsSources)
