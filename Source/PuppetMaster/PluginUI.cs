@@ -18,6 +18,7 @@ namespace PuppetMaster
 
         public ConfigWindow() : base(Name)
         {
+            CurrentReactionIndex = Service.configuration!.CurrentReactionEdit;
         }
 
         public void Dispose()

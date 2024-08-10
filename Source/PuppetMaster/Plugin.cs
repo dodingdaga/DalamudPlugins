@@ -11,7 +11,7 @@ namespace PuppetMaster
         public static String Name => "PuppetMaster";
         private const String CommandName = "/puppetmaster";
         public WindowSystem windowSystem = new("PuppetMaster");
-        public ConfigWindow configWindow = new();
+        public ConfigWindow configWindow;
 
         public Plugin(IDalamudPluginInterface pluginInterface)
         {
@@ -21,7 +21,8 @@ namespace PuppetMaster
             
             // Configuration
             Service.InitializeConfig();
-            
+
+            this.configWindow = new ConfigWindow();
             windowSystem.AddWindow(configWindow);
 
             // Handlers

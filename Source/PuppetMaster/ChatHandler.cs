@@ -3,6 +3,8 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Utility;
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
 namespace PuppetMaster
@@ -13,7 +15,49 @@ namespace PuppetMaster
         {
         }
 
-        public static void DoCommand(int index, XivChatType type, String message)
+        public static async Task RunMacroAsync(string[] lines, int index)
+        {
+            await Task.Run(() =>
+            {
+                foreach (var line in lines)
+                {
+                    var textCommand = Service.FormatCommand(line);
+                    if (!string.IsNullOrEmpty(textCommand.Main))
+                    {
+                        // Process emote
+                        var isEmote = Service.Emotes.Contains(textCommand.Main);
+                        if (isEmote)
+                        {
+                            if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration!.Reactions[index].AllowSit)
+                                textCommand.Main = "/no";
+                            if (Service.configuration!.Reactions[index].MotionOnly)
+                                textCommand.Args = "motion";
+                        }
+
+                        if (!Service.configuration!.Reactions[index].CommandBlacklist.Contains(textCommand.Main))
+                        {
+                            // Execute command
+                            if (Service.configuration.Reactions[index].AllowAllCommands || isEmote || Service.configuration.Reactions[index].CommandWhitelist.Contains(textCommand.Main))
+                            {
+                                if (textCommand.Main == "/wait" && int.TryParse(textCommand.Args, out var seconds))
+                                    Thread.Sleep(Math.Clamp(seconds, 0, 60) * 1000);
+                                else
+                                    Chat.SendMessage($"{textCommand}");
+                            }
+                        }
+#if DEBUG
+                        else
+                        {
+                            Service.ChatGui.Print($"{textCommand.Main} in CommandBlacklist");
+                            return;
+                        }
+#endif
+                    }
+                }
+            });
+        }
+
+        public static async void DoCommand(int index, XivChatType type, String message)
         {
             // Check if part of enabled channels
             if (!Service.configuration!.Reactions[index].EnabledChannels.Contains((int)type)) return;
@@ -43,36 +87,8 @@ namespace PuppetMaster
 
 
             var lines = MyRegex().Split(command.ToString());
-            foreach (var line in lines)
-            {
-                var textCommand = Service.FormatCommand(line);
-                if (!string.IsNullOrEmpty(textCommand.Main))
-                {
-                    // Process emote
-                    var isEmote = Service.Emotes.Contains(textCommand.Main);
-                    if (isEmote)
-                    {
-                        if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration.Reactions[index].AllowSit)
-                            textCommand.Main = "/no";
-                        if (Service.configuration.Reactions[index].MotionOnly)
-                            textCommand.Args = "motion";
-                    }
-
-                    if (Service.configuration.Reactions[index].CommandBlacklist.Contains(textCommand.Main))
-                    {
-#if DEBUG
-                        Service.ChatGui.Print($"{textCommand.Main} in CommandBlacklist");
-#endif
-                        return;
-                    }
-
-                    // Execute command
-                    if ( Service.configuration.Reactions[index].AllowAllCommands || isEmote || Service.configuration.Reactions[index].CommandWhitelist.Contains(textCommand.Main) )
-                    {
-                        Chat.SendMessage($"{textCommand}");
-                    }
-                }
-            }
+            var task = RunMacroAsync(lines, index);
+            await task;
         }
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
