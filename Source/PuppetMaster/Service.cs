@@ -46,7 +46,7 @@ namespace PuppetMaster
 
         public static void SetEnabledAll(bool enabled = true)
         {
-            for (int i = 0; i < configuration?.Reactions.Count; i++)
+            for (var i = 0; i < configuration?.Reactions.Count; i++)
                 configuration.Reactions[i].Enabled = enabled;
             configuration?.Save();
 #if DEBUG
@@ -60,7 +60,7 @@ namespace PuppetMaster
 #if DEBUG
             var found = 0;
 #endif
-            for (int i = 0; i < configuration?.Reactions.Count; i++)
+            for (var i = 0; i < configuration?.Reactions.Count; i++)
             {
                 if (configuration.Reactions[i].Name.Equals(name, sc))
                 {
@@ -88,7 +88,7 @@ namespace PuppetMaster
 
         public static String GetDefaultRegex(int index)
         {
-            return configuration != null && IsValidReactionIndex(index) ?
+            return IsValidReactionIndex(index) && !configuration!.Reactions[index].TriggerPhrase.IsNullOrWhitespace() ?
                 @"(?i)\b(?:" + configuration.Reactions[index].TriggerPhrase + @")\s+(?:\((.*?)\)|(\w+))" : @"";
         }
         public static String GetDefaultReplaceMatch()
@@ -96,7 +96,7 @@ namespace PuppetMaster
             return @"/$1$2";
         }
 
-        public static void InitializeRegex()
+        private static void InitializeRegex()
         {
             for (var i = 0; i < configuration?.Reactions.Count; i++)
                 InitializeRegex(i);
@@ -104,8 +104,7 @@ namespace PuppetMaster
 
         public static void InitializeRegex(int index, bool reload = false)
         {
-            if (configuration == null) return;
-            if (configuration.Reactions[index].UseRegex && (reload || configuration.Reactions[index].CustomRx == null))
+            if (configuration!.Reactions[index].UseRegex && (reload || configuration.Reactions[index].CustomRx == null))
                 try { configuration.Reactions[index].CustomRx = new Regex(configuration.Reactions[index].CustomPhrase); } catch (Exception) { }
             else if ( reload || configuration.Reactions[index].Rx == null)
                 try { configuration.Reactions[index].Rx = new Regex(GetDefaultRegex(index)); } catch (Exception) { }
@@ -146,18 +145,24 @@ namespace PuppetMaster
         {
             ParsedTextCommand result = new();
 
-            if (configuration == null || !IsValidReactionIndex(index) ||
-                configuration.Reactions[index].TestInput.IsNullOrEmpty() ||
-                configuration.Reactions[index].TestInput.IsNullOrWhitespace()) return result;
-
-#if DEBUG
-            if (configuration.Reactions[index].UseRegex)
-                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].CustomPhrase} Replace:{configuration.Reactions[index].ReplaceMatch} Test:{configuration.Reactions[index].TestInput}");
-            else
-                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].TriggerPhrase} Test:{configuration.Reactions[index].TestInput}");
-#endif
+            if (!IsValidReactionIndex(index) ||
+                configuration!.Reactions[index].TestInput.IsNullOrWhitespace()) return result;
 
             var usingRegex = (configuration.Reactions[index].UseRegex && configuration.Reactions[index].CustomRx != null);
+
+            if ((usingRegex && Service.configuration.Reactions[index].CustomRx!.ToString().IsNullOrWhitespace()) ||
+                (!usingRegex && Service.configuration.Reactions[index].Rx!.ToString().IsNullOrWhitespace()))
+            {
+                return result;
+            }
+
+#if DEBUG
+            if (usingRegex)
+                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].CustomRx} Replace:{configuration.Reactions[index].ReplaceMatch} Test:{configuration.Reactions[index].TestInput}");
+            else
+                ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].Rx} Test:{configuration.Reactions[index].TestInput}");
+#endif
+
             var matches = usingRegex ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput) : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
             if (matches.Count != 0)
             {

@@ -15,13 +15,22 @@ namespace PuppetMaster
 
         public static void DoCommand(int index, XivChatType type, String message)
         {
-            if (Service.configuration == null) return;
-
             // Check if part of enabled channels
-            if (!Service.configuration.Reactions[index].EnabledChannels.Contains((int)type)) return;
+            if (!Service.configuration!.Reactions[index].EnabledChannels.Contains((int)type)) return;
+
+            var usingRegex = (Service.configuration.Reactions[index].UseRegex && Service.configuration.Reactions[index].CustomRx != null);
+
+            // Guard against whitespace regex
+            if ((usingRegex && Service.configuration.Reactions[index].CustomRx!.ToString().IsNullOrWhitespace()) ||
+                (!usingRegex && Service.configuration.Reactions[index].Rx!.ToString().IsNullOrWhitespace()))
+            {
+#if DEBUG
+                Service.ChatGui.PrintError($"[PuppetMasster][ERR] Empty RegEx [{message}]");
+#endif
+                return;
+            }
 
             // Find command in message
-            var usingRegex = (Service.configuration.Reactions[index].UseRegex && Service.configuration.Reactions[index].CustomRx != null);
             var matches = usingRegex ? Service.configuration.Reactions[index].CustomRx!.Matches(message) : Service.configuration.Reactions[index].Rx!.Matches(message);
             if (matches.Count == 0) return;
             var command = string.Empty;
@@ -68,9 +77,7 @@ namespace PuppetMaster
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
-            if (Service.configuration == null) return;
-
-            if (Service.configuration.DebugLogTypes && type != XivChatType.Debug)
+            if (Service.configuration!.DebugLogTypes && type != XivChatType.Debug)
             {
                 var prefix = int.TryParse(type.ToString(), out var number)?"[" + number + "]":"[" + ((int)type) + "][" + type + "]";
                 prefix += (sender.ToString().IsNullOrEmpty() ? "" : "<" + sender + "> ");

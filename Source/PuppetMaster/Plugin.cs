@@ -21,7 +21,6 @@ namespace PuppetMaster
             
             // Configuration
             Service.InitializeConfig();
-            Service.InitializeRegex();
             
             windowSystem.AddWindow(configWindow);
 
@@ -62,13 +61,13 @@ namespace PuppetMaster
 #if DEBUG
                 Service.ChatGui.Print($"PARSED TEXT COMMAND: {ptc}");
 #endif
-                var enableReactions = (bool enable) =>
+                void enableReactions(bool enable)
                 {
                     if (string.IsNullOrEmpty(ptc.Args))
                         Service.SetEnabledAll(enable);
                     else
                         Service.SetEnabled(ptc.Args, enable);
-                };
+                }
                 if (ptc.Main.Equals("/on"))
                 {
                     enableReactions(true);
@@ -88,7 +87,7 @@ namespace PuppetMaster
         private void DrawConfigUI()
         {
             this.configWindow.IsOpen = true;
-            this.configWindow.PreloadTestResult();
+            ConfigWindow.PreloadTestResult();
         }
     }
 }

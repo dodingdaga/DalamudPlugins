@@ -60,6 +60,7 @@ namespace PuppetMaster
         public List<Reaction> Reactions { get; set; } = [];
         public int CurrentReactionEdit = -1;
         public bool DebugLogTypes { get; set; } = false;
+        public uint MaxRegexLength { get; set; } = 1000;
 
         [NonSerialized]
         private IDalamudPluginInterface? pluginInterface;

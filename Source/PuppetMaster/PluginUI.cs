@@ -25,20 +25,14 @@ namespace PuppetMaster
             GC.SuppressFinalize(this);
         }
 
-        public void PreloadTestResult()
+        public static void PreloadTestResult()
         {
-            if (Service.configuration != null)
-            {
-                CurrentReactionIndex = Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit) ? Service.configuration.CurrentReactionEdit : -1;
-                TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-            }
+            TextCommand = Service.GetTestInputCommand(Service.configuration!.CurrentReactionEdit);
         }
 
         private static void DrawReaction(int index)
         {
-            if (Service.configuration == null) return;
-
-            var enabled = Service.configuration.Reactions[index].Enabled;
+            var enabled = Service.configuration!.Reactions[index].Enabled;
             if (ImGui.Checkbox($"##{Service.configuration.Reactions[index].Name}##ReactionCheckBox{index}", ref enabled))
             {
                 Service.configuration.Reactions[index].Enabled= enabled;
@@ -77,11 +71,9 @@ namespace PuppetMaster
 
         private static void DrawChannelCheckbox(int reactionIndex, int channelIndex)
         {
-            if (Service.configuration == null) return;
-
             if (channelIndex % 4 != 0) ImGui.SameLine();
             
-            var chatType = Service.configuration.EnabledChannels[channelIndex].ChatType;
+            var chatType = Service.configuration!.EnabledChannels[channelIndex].ChatType;
             var enabled = Service.configuration.Reactions[reactionIndex].EnabledChannels.Contains(chatType);
            
             if (ImGui.Checkbox($"{Service.configuration.EnabledChannels[channelIndex].Name}##DefaultChannelCheckBox{channelIndex}{chatType}", ref enabled))
@@ -107,11 +99,9 @@ namespace PuppetMaster
 
         private static void DrawCustomChannelCheckbox(int reactionIndex, int channelIndex)
         {
-            if (Service.configuration == null) return;
-
             if (channelIndex % 4 != 0) ImGui.SameLine();
             
-            var chatType = Service.configuration.CustomChannels[channelIndex].ChatType;
+            var chatType = Service.configuration!.CustomChannels[channelIndex].ChatType;
             var enabled = Service.configuration.Reactions[reactionIndex].EnabledChannels.Contains(chatType);
             
             if (ImGui.Checkbox($"{Service.configuration.CustomChannels[channelIndex].Name}##CustomChannelCheckBox{channelIndex}{chatType}", ref enabled))
@@ -172,8 +162,6 @@ namespace PuppetMaster
 
         public override void Draw()
         {            
-            if (Service.configuration == null) return;
-
             ImGui.SetNextWindowSize(new Vector2(480, 640), ImGuiCond.FirstUseEver);
 
             ImGui.BeginTabBar("PuppetMaster Config Tabs");
@@ -182,7 +170,7 @@ namespace PuppetMaster
             {
                 if (ImGui.Button($"Add##ReactionAddButton"))
                 {
-                    Service.configuration.Reactions.Add(new Reaction() { Name = "Reaction" });
+                    Service.configuration!.Reactions.Add(new Reaction() { Name = "Reaction" });
                     Service.configuration.Save();
                 }
 
@@ -190,7 +178,7 @@ namespace PuppetMaster
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+                for (var index = 0; index < Service.configuration!.Reactions.Count; index++)
                 {
                     DrawReaction(index);
                 }
@@ -201,7 +189,7 @@ namespace PuppetMaster
             if (ImGui.BeginTabItem("Edit Reactions"))
             {
                 var reactionNames =  new List<string>{ };
-                foreach (var reaction in Service.configuration.Reactions)
+                foreach (var reaction in Service.configuration!.Reactions)
                     reactionNames.Add(reaction.Name);
 
                 
@@ -227,7 +215,7 @@ namespace PuppetMaster
                     ImGui.SameLine();
 
                     var trigger = Service.configuration.Reactions[CurrentReactionIndex].UseRegex ? Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase;
-                    if (ImGui.InputText("##Trigger", ref trigger, 500))
+                    if (ImGui.InputText("##Trigger", ref trigger, Service.configuration.MaxRegexLength))
                     {
                         if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                             Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase = trigger;
@@ -295,6 +283,7 @@ namespace PuppetMaster
                     {
                         Service.configuration.Reactions[CurrentReactionIndex].UseRegex = useRegex;
                         Service.configuration.Save();
+                        Service.InitializeRegex(CurrentReactionIndex);
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                     }
                     
@@ -393,7 +382,7 @@ namespace PuppetMaster
             {
                 ImGui.SetNextItemWidth(400);
                
-                var debugLogTypes = Service.configuration.DebugLogTypes;
+                var debugLogTypes = Service.configuration!.DebugLogTypes;
                 if (ImGui.Checkbox("Debug log types", ref debugLogTypes))
                 {  
                     Service.configuration.DebugLogTypes = debugLogTypes;
