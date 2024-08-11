@@ -39,9 +39,6 @@ namespace PuppetMaster
 
             // Excel sheets
             Service.InitializeEmotes();
-#if DEBUG
-            PuppetMaster.Chat.SendMessage("/clearlog");
-#endif
         }
 
         public void Dispose()
@@ -60,7 +57,7 @@ namespace PuppetMaster
             {
                 var ptc = Service.FormatCommand($"/{args}");
 #if DEBUG
-                Service.ChatGui.Print($"PARSED TEXT COMMAND: {ptc}");
+                Service.ChatGui.Print($"[PuppetMaster][Debug] PARSED TEXT COMMAND: {ptc}");
 #endif
                 void enableReactions(bool enable)
                 {

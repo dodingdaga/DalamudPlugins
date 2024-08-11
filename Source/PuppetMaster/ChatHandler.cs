@@ -19,6 +19,10 @@ namespace PuppetMaster
         {
             await Task.Run(() =>
             {
+                Service.semaphore.WaitOne();
+                var reaction = Service.configuration!.Reactions[index];
+                Service.semaphore.Release();
+
                 foreach (var line in lines)
                 {
                     var textCommand = Service.FormatCommand(line);
@@ -28,19 +32,19 @@ namespace PuppetMaster
                         var isEmote = Service.Emotes.Contains(textCommand.Main);
                         if (isEmote)
                         {
-                            if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !Service.configuration!.Reactions[index].AllowSit)
+                            if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && reaction.AllowSit)
                                 textCommand.Main = "/no";
-                            if (Service.configuration!.Reactions[index].MotionOnly)
+                            if (reaction.MotionOnly)
                                 textCommand.Args = "motion";
                         }
 
-                        if (!Service.configuration!.Reactions[index].CommandBlacklist.Contains(textCommand.Main))
+                        if (!reaction.CommandBlacklist.Contains(textCommand.Main))
                         {
                             // Execute command
-                            if (Service.configuration.Reactions[index].AllowAllCommands || isEmote || Service.configuration.Reactions[index].CommandWhitelist.Contains(textCommand.Main))
+                            if (reaction.AllowAllCommands || isEmote || reaction.CommandWhitelist.Contains(textCommand.Main))
                             {
-                                if (textCommand.Main == "/wait" && int.TryParse(textCommand.Args, out var seconds))
-                                    Thread.Sleep(Math.Clamp(seconds, 0, 60) * 1000);
+                                if (textCommand.Main == "/wait" && float.TryParse(textCommand.Args, out var seconds))
+                                    Thread.Sleep((int)(Math.Clamp(seconds, 0.0, 60.0) * 1000.0));
                                 else
                                     Chat.SendMessage($"{textCommand}");
                             }

@@ -9,6 +9,7 @@ using Lumina.Excel.GeneratedSheets;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace PuppetMaster
 {
@@ -19,13 +20,15 @@ namespace PuppetMaster
         public static Lumina.Excel.ExcelSheet<Emote>? emoteCommands;
         public static HashSet<String> Emotes = [];
 
+        public static Semaphore semaphore = new(initialCount:1, maximumCount:1);
+
         private const uint CHANNEL_COUNT = 23;
 
         public static void InitializeEmotes()
         {
             emoteCommands = DataManager.GetExcelSheet<Emote>();
             if (emoteCommands == null)
-                ChatGui.Print($"[PuppetMaster][Error] Failed to read Emotes list");
+                ChatGui.PrintError($"[PuppetMaster][Error] Failed to read Emotes list");
             else
             {
                 foreach (var emoteCommand in emoteCommands)
@@ -40,7 +43,7 @@ namespace PuppetMaster
                     if (cmd != null && cmd != "") Emotes.Add(cmd);
                 }
                 if (Emotes.Count == 0)
-                    ChatGui.Print($"[PuppetMaster][Error] Failed to build Emotes list");
+                    ChatGui.PrintError($"[PuppetMaster][Error] Failed to build Emotes list");
             }
         }
 
@@ -51,7 +54,7 @@ namespace PuppetMaster
             configuration?.Save();
 #if DEBUG
             if (configuration != null && configuration.Reactions.Count > 0)
-                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction" + (configuration.Reactions.Count > 1 ? "s" : ""));
+                ChatGui.Print("[PuppetMaster] "+(enabled ? "Enabled" : "Disabled") + $" {configuration.Reactions.Count} reaction" + (configuration.Reactions.Count > 1 ? "s" : ""));
 #endif
         }
 
@@ -73,12 +76,10 @@ namespace PuppetMaster
 #if DEBUG
             if (found > 0)
             {
-                ChatGui.Print((enabled ? "Enabled" : "Disabled") + $" {found} reaction" + (found > 1 ? "s" : "") + $" with name={name}");
-                configuration?.Save();
+                ChatGui.Print("[PuppetMaster] " + (enabled ? "Enabled" : "Disabled") + $" {found} reaction" + (found > 1 ? "s" : "") + $" with name={name}");
             }
-#else
-            configuration?.Save();
 #endif
+            configuration?.Save();
         }
 
         public static bool IsValidReactionIndex(int index)
@@ -157,10 +158,12 @@ namespace PuppetMaster
             }
 
 #if DEBUG
+            /*
             if (usingRegex)
                 ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].CustomRx} Replace:{configuration.Reactions[index].ReplaceMatch} Test:{configuration.Reactions[index].TestInput}");
             else
                 ChatGui.Print($"[TESTING] Pattern:{configuration.Reactions[index].Rx} Test:{configuration.Reactions[index].TestInput}");
+            */
 #endif
 
             var matches = usingRegex ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput) : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);

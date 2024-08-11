@@ -36,8 +36,10 @@ namespace PuppetMaster
             var enabled = Service.configuration!.Reactions[index].Enabled;
             if (ImGui.Checkbox($"##{Service.configuration.Reactions[index].Name}##ReactionCheckBox{index}", ref enabled))
             {
+                Service.semaphore.WaitOne();
                 Service.configuration.Reactions[index].Enabled= enabled;
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
 
             ImGui.SameLine();
@@ -48,8 +50,10 @@ namespace PuppetMaster
             var reactionName = Service.configuration.Reactions[index].Name;
             if (ImGui.InputText($"##CustomChannelLabel##{index}", ref reactionName, 100))
             {
+                Service.semaphore.WaitOne();
                 Service.configuration.Reactions[index].Name = reactionName;
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
             ImGui.PopItemWidth();
 
@@ -65,8 +69,10 @@ namespace PuppetMaster
             ImGui.SameLine();
             if (ImGui.Button($"Delete##ReactionDelete##{index}"))
             {
+                Service.semaphore.WaitOne();
                 Service.configuration.Reactions.RemoveAt(index);
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
         }
 
@@ -79,6 +85,7 @@ namespace PuppetMaster
            
             if (ImGui.Checkbox($"{Service.configuration.EnabledChannels[channelIndex].Name}##DefaultChannelCheckBox{channelIndex}{chatType}", ref enabled))
             {
+                Service.semaphore.WaitOne();
                 if (enabled)
                 {
                     Service.configuration.Reactions[reactionIndex].EnabledChannels.Add(chatType);
@@ -88,6 +95,7 @@ namespace PuppetMaster
                     Service.configuration.Reactions[reactionIndex].EnabledChannels.Remove(chatType);
                 }
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
 
             if (ImGui.IsItemHovered())
@@ -107,6 +115,7 @@ namespace PuppetMaster
             
             if (ImGui.Checkbox($"{Service.configuration.CustomChannels[channelIndex].Name}##CustomChannelCheckBox{channelIndex}{chatType}", ref enabled))
             {
+                Service.semaphore.WaitOne();
                 if (enabled)
                 {
                     Service.configuration.Reactions[reactionIndex].EnabledChannels.Add(chatType);
@@ -116,6 +125,7 @@ namespace PuppetMaster
                     Service.configuration.Reactions[reactionIndex].EnabledChannels.Remove(chatType);
                 }
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
 
             if (ImGui.IsItemHovered())
@@ -156,8 +166,14 @@ namespace PuppetMaster
 
             if (ImGui.Button($"Delete##CustomChannelDelete#{index}"))
             {
+                Service.semaphore.WaitOne();
+                for (var i = 0; i < Service.configuration.Reactions.Count; i++)
+                {
+                    Service.configuration.Reactions[i].EnabledChannels.Remove(channelID);
+                }
                 Service.configuration.CustomChannels.RemoveAt(index);
                 Service.configuration.Save();
+                Service.semaphore.Release();
             }
         }
 
@@ -171,8 +187,10 @@ namespace PuppetMaster
             {
                 if (ImGui.Button($"Add##ReactionAddButton"))
                 {
+                    Service.semaphore.WaitOne();
                     Service.configuration!.Reactions.Add(new Reaction() { Name = "Reaction" });
                     Service.configuration.Save();
+                    Service.semaphore.Release();
                 }
 
                 ImGui.Spacing();
@@ -192,8 +210,6 @@ namespace PuppetMaster
                 var reactionNames =  new List<string>{ };
                 foreach (var reaction in Service.configuration!.Reactions)
                     reactionNames.Add(reaction.Name);
-
-                
 
                 ImGui.SetNextItemWidth(450);
                 if (ImGui.Combo("##ReactEditSelector", ref CurrentReactionIndex, [.. reactionNames], reactionNames.Count))
@@ -218,6 +234,7 @@ namespace PuppetMaster
                     var trigger = Service.configuration.Reactions[CurrentReactionIndex].UseRegex ? Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase;
                     if (ImGui.InputText("##Trigger", ref trigger, Service.configuration.MaxRegexLength))
                     {
+                        Service.semaphore.WaitOne();
                         if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                             Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase = trigger;
                         else
@@ -226,6 +243,7 @@ namespace PuppetMaster
                         Service.InitializeRegex(CurrentReactionIndex, true);
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                         Service.configuration.Save();
+                        Service.semaphore.Release();
                     }
                     if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
                     {
@@ -246,9 +264,11 @@ namespace PuppetMaster
                         ImGui.SameLine();
                         if (ImGui.InputTextMultiline("##Replacement", ref replaceMatch, 500, new Vector2(350, 80)))
                         {
+                            Service.semaphore.WaitOne();
                             Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = replaceMatch;
                             Service.configuration.Save();
                             TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                            Service.semaphore.Release();
                         }
                     }
 
@@ -259,9 +279,11 @@ namespace PuppetMaster
                     var testInput = Service.configuration.Reactions[CurrentReactionIndex].TestInput;
                     if (ImGui.InputText("##TestInput", ref testInput, 500))
                     {
+                        Service.semaphore.WaitOne();
                         Service.configuration.Reactions[CurrentReactionIndex].TestInput = testInput;
                         Service.configuration.Save();
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        Service.semaphore.Release();
                     }
                     
                     ImGui.Unindent(45);
@@ -282,10 +304,12 @@ namespace PuppetMaster
                     var useRegex = Service.configuration.Reactions[CurrentReactionIndex].UseRegex;
                     if (ImGui.Checkbox("Use Regex", ref useRegex))
                     {
+                        Service.semaphore.WaitOne();
                         Service.configuration.Reactions[CurrentReactionIndex].UseRegex = useRegex;
                         Service.configuration.Save();
                         Service.InitializeRegex(CurrentReactionIndex);
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        Service.semaphore.Release();
                     }
                     
                     if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
@@ -293,11 +317,13 @@ namespace PuppetMaster
                         ImGui.SameLine();
                         if (ImGui.Button("Reset"))
                         {
+                            Service.semaphore.WaitOne();
                             Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase = replaceMatch = Service.GetDefaultRegex(CurrentReactionIndex);
                             Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = trigger = Service.GetDefaultReplaceMatch();
                             Service.InitializeRegex(CurrentReactionIndex, true);
                             TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                             Service.configuration.Save();
+                            Service.semaphore.Release();
                         }
                         if (ImGui.IsItemHovered())
                         {
@@ -310,9 +336,11 @@ namespace PuppetMaster
                     var allowAllCommands = Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands;
                     if (ImGui.Checkbox("Allow all text commands", ref allowAllCommands))
                     {
+                        Service.semaphore.WaitOne();
                         Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands = allowAllCommands;
                         Service.configuration.Save();
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        Service.semaphore.Release();
                     }
                    
                     if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
