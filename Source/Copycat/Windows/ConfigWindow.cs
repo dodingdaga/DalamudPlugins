@@ -9,11 +9,8 @@ public class ConfigWindow : Window, IDisposable
 {
     public ConfigWindow() : base(
         "Right Back At You",
-        ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-        ImGuiWindowFlags.NoScrollWithMouse)
+        ImGuiWindowFlags.AlwaysAutoResize)
     {
-        this.Size = new Vector2(310, 75);
-        this.SizeCondition = ImGuiCond.Always;
     }
 
     public void Dispose() { }
@@ -34,11 +31,19 @@ public class ConfigWindow : Window, IDisposable
             Service.configuration.PlayerConfigurations[Service.playerIndex].TargetBack = targetBack;
             Service.configuration.Save();
         }
-        ImGui.SameLine();
+        ImGui.Spacing();
+        ImGui.Spacing();
         var motionOnly = (Service.configuration!.PlayerConfigurations[Service.playerIndex].MotionOnly != "");
         if (ImGui.Checkbox("Motion Only", ref motionOnly))
         {
             Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly = motionOnly? "motion":"";
+            Service.configuration.Save();
+        }
+        ImGui.SameLine();
+        var friendsOnly = Service.configuration.PlayerConfigurations[Service.playerIndex].Allowed == PlayerFlags.Friend;
+        if (ImGui.Checkbox("Friends Only", ref friendsOnly))
+        {
+            Service.configuration.PlayerConfigurations[Service.playerIndex].Allowed = friendsOnly ? PlayerFlags.Friend : PlayerFlags.All;
             Service.configuration.Save();
         }
     }

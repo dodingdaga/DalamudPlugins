@@ -1,3 +1,4 @@
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Utility;
 using Lumina.Excel.GeneratedSheets;
@@ -25,14 +26,17 @@ namespace Copycat
             //Service.chatGui.Print($"{instigator.Name}:{emoteSheet.GetRow((uint)emoteId)?.Name}");
             //Beckon == 8
 
-            if (Service.configuration!.PlayerConfigurations[Service.playerIndex].TargetBack && instigator != null)
+            if (Service.configuration.PlayerConfigurations[Service.playerIndex].Allowed == PlayerFlags.Friend && !instigator.StatusFlags.HasFlag(StatusFlags.Friend))
+                return;
+
+            if (Service.configuration.PlayerConfigurations[Service.playerIndex].TargetBack && instigator != null)
                 Service.targetManager.Target = instigator;
 
             //Service.commonBase!.Functions.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command} {Service.configuration!.PlayerConfigurations[Service.playerIndex].MotionOnly}");
 
             //Temporary fix to XivCommon
             
-            if (Service.configuration!.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
+            if (Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
                 Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command}");
             else
                 Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command} motion");

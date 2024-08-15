@@ -10,7 +10,17 @@ namespace Copycat
 
         public bool Enabled { get; set; } = true;
         public bool TargetBack { get; set; } = true;
+        public PlayerFlags Allowed {  get; set; } = PlayerFlags.All;
         public String MotionOnly  { get; set; } = "";
+    }
+
+    public enum PlayerFlags
+    {
+        All = 0,
+        Friend = 1,
+        Party = 2,
+        FC = 4,
+        Alliance = 8
     }
 
     [Serializable]
