@@ -32,7 +32,7 @@ namespace PuppetMaster
                         var isEmote = Service.Emotes.Contains(textCommand.Main);
                         if (isEmote)
                         {
-                            if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && reaction.AllowSit)
+                            if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !reaction.AllowSit)
                                 textCommand.Main = "/no";
                             if (reaction.MotionOnly)
                                 textCommand.Args = "motion";
