@@ -6,7 +6,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -31,8 +31,35 @@ namespace PuppetMaster
             if (Service.emoteCommands == null)
             {
                 Service.Logger.Error("[PuppetMaster] [Error] Failed to read Emotes list");
-            } else {
+            }
+            else
+            {
                 foreach (var emoteCommand in Service.emoteCommands)
+                {
+                    try
+                    {
+                        // Tenter d'accéder à TextCommand.Value
+                        var textCommand = emoteCommand.TextCommand.Value;
+
+                        if (!string.IsNullOrEmpty(textCommand.Command.ToString()))
+                            Service.Emotes.Add(textCommand.Command.ToString());
+
+                        if (!string.IsNullOrEmpty(textCommand.ShortCommand.ToString()))
+                            Service.Emotes.Add(textCommand.ShortCommand.ToString());
+
+                        if (!string.IsNullOrEmpty(textCommand.Alias.ToString()))
+                            Service.Emotes.Add(textCommand.Alias.ToString());
+
+                        if (!string.IsNullOrEmpty(textCommand.ShortAlias.ToString()))
+                            Service.Emotes.Add(textCommand.ShortAlias.ToString());
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        Service.Logger.Warning($"EmoteCommand.TextCommand.Value is null for emoteCommand: {emoteCommand}");
+                    }
+                }
+
+                /*foreach (var emoteCommand in Service.emoteCommands)
                 {
                     var command = emoteCommand.TextCommand.Value?.Command;
 
@@ -53,7 +80,7 @@ namespace PuppetMaster
 
                     if (shortAlias != null && shortAlias != "")
                         Service.Emotes.Add(shortAlias);
-                }
+                }*/
 
                 if (Service.Emotes.Count != 0)
                     return;
@@ -82,7 +109,7 @@ namespace PuppetMaster
                 {
                     foreach (var world in Service.Worlds)
                     {
-                        Service.Logger.Info("[PuppetMaster] World : Name - " + world.Name + " /// Internal_name - " + world.InternalName + " /// Region - " + world.Region);
+                        Service.Logger.Info("[PuppetMaster] World : Name - " + world.Name.ToString() + " /// Internal_name - " + world.InternalName.ToString() + " /// Region - " + world.Region);
                     }
 
                     return;

@@ -7,7 +7,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using Lumina;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using Lumina.Extensions;
 using Newtonsoft.Json;
 using System;
@@ -180,7 +180,7 @@ namespace PuppetMaster
 
             DefaultInterpolatedStringHandler interpolatedStringHandler = new DefaultInterpolatedStringHandler(0, 1);
             interpolatedStringHandler.AppendFormatted<Service.ParsedTextCommand>(parsedTextCommand);
-            Chat.Instance.SendMessage(interpolatedStringHandler.ToStringAndClear());
+            Chat.SendMessage(interpolatedStringHandler.ToStringAndClear());
         }
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
@@ -194,12 +194,20 @@ namespace PuppetMaster
             object? player_data = GetRealPlayerNameFromSenderPayloads(sender.Payloads);
 
             string? player_name;
-            World? player_world;
+            World player_world;
 
-            if (player_data is Array dataArray && dataArray.Length >= 2)
+            if (player_data is Array dataArray && dataArray.Length >= 3)
             {
-                player_name = (string?)dataArray.GetValue(0);
-                player_world = (World?)dataArray.GetValue(1);
+                var payloadtype = (string?)dataArray.GetValue(0);
+
+                if (payloadtype == "payload")
+                {
+                    player_name = (string?)dataArray.GetValue(1);
+                    player_world = (World)dataArray.GetValue(2);
+                } else
+                {
+                    return;
+                }
             }
             else
             {
@@ -209,7 +217,7 @@ namespace PuppetMaster
 
             // Service.Logger.Info("[PUPPETMASTER] Found player : " + (player_name ?? "no player found"));
 
-            if (player_name == null || player_world == null)
+            if (player_name == null)
                 return;
 
             ChatHandler.DoCommand(type, message.ToString(), player_name, player_world);
@@ -227,24 +235,18 @@ namespace PuppetMaster
 
             if (foundPlayerPayload != null)
             {
-                // Service.Logger.Info("[PUPPETMASTER] Found player payload");
-
                 PlayerPayload? playerPayload = foundPlayerPayload as PlayerPayload;
 
                 if (playerPayload == null)
                 {
-                    // Service.Logger.Info("[PUPPETMASTER] Player payload error");
                     return null;
                 }
 
-                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World);
-                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.InternalName);
-                // Service.Logger.Info("[PUPPETMASTER] Player Payload - World : " + playerPayload.World.Name);
+                object[] playerDataArray = new object[3];
 
-                object[] playerDataArray = new object[2];
-
-                playerDataArray[0] = playerPayload.PlayerName;
-                playerDataArray[1] = playerPayload.World;
+                playerDataArray[0] = "payload";
+                playerDataArray[1] = playerPayload.PlayerName;
+                playerDataArray[2] = playerPayload.World.Value;
 
                 return playerDataArray;
             } else
@@ -272,10 +274,11 @@ namespace PuppetMaster
                             continue;
                         }
 
-                        object[] playerDataArray = new object[2];
+                        object[] playerDataArray = new object[3];
 
-                        playerDataArray[0] = possiblePlayerName;
-                        playerDataArray[1] = null;
+                        playerDataArray[0] = "rawtext";
+                        playerDataArray[1] = possiblePlayerName;
+                        playerDataArray[2] = null;
 
                         return playerDataArray;
                     } else
