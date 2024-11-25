@@ -87,7 +87,7 @@ namespace Copycat
             return true;
         }
 
-        private void ClientState_Logout()
+        private void ClientState_Logout(int type, int code)
         {
             Service.playerName = null;
             Service.playerIndex = -1;

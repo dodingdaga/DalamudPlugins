@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Authors>DodingDaga</Authors>
     <Company>Bratatat</Company>
-    <Version>7.0.5.0</Version>
+    <Version>7.1.1.0</Version>
     <Description>Nothing but a second-rate, trying hard, copycat!</Description>
     <Copyright></Copyright>
   </PropertyGroup>
@@ -26,7 +26,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="2.1.13" />
+    <PackageReference Include="DalamudPackager" Version="11.0.0" />
     <Reference Include="FFXIVClientStructs">
       <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
       <Private>false</Private>

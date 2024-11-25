@@ -1,7 +1,7 @@
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Utility;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using System;
 
 namespace Copycat
@@ -37,9 +37,9 @@ namespace Copycat
             //Temporary fix to XivCommon
             
             if (Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
-                Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command}");
+                Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()}");
             else
-                Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command} motion");
+                Copycat.Utils.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()} motion");
         }
     }
 }
