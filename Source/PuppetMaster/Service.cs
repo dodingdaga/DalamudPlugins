@@ -4,7 +4,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 
 using System;
 using System.Collections.Generic;
@@ -33,13 +33,13 @@ namespace PuppetMaster
             {
                 foreach (var emoteCommand in emoteCommands)
                 {
-                    var cmd = emoteCommand.TextCommand.Value?.Command;
+                    var cmd = emoteCommand.TextCommand.ValueNullable?.Command.ExtractText();
                     if (cmd != null && cmd != "") Emotes.Add(cmd);
-                    cmd = emoteCommand.TextCommand.Value?.ShortCommand;
+                    cmd = emoteCommand.TextCommand.ValueNullable?.ShortCommand.ExtractText(); ;
                     if (cmd != null && cmd != "") Emotes.Add(cmd);
-                    cmd = emoteCommand.TextCommand.Value?.Alias;
+                    cmd = emoteCommand.TextCommand.ValueNullable?.Alias.ExtractText(); ;
                     if (cmd != null && cmd != "") Emotes.Add(cmd);
-                    cmd = emoteCommand.TextCommand.Value?.ShortAlias;
+                    cmd = emoteCommand.TextCommand.ValueNullable?.ShortAlias.ExtractText(); ;
                     if (cmd != null && cmd != "") Emotes.Add(cmd);
                 }
                 if (Emotes.Count == 0)
