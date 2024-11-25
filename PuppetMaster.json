@@ -3,7 +3,7 @@
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "7.0.5.7",
+    "AssemblyVersion": "7.1.1.0",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -11,16 +11,16 @@
       "emote",
       "plugin"
     ],
-    "DalamudApiLevel": 10,
+    "DalamudApiLevel": 11,
     "LoadPriority": 0,
     "Punchline": "Let others tell you what to do.",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1723689820",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.0.5.7/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.0.5.7/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.0.5.7/latest.zip"
+    "LastUpdated": "1732537768",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip"
   },
   {
     "Author": "DodingDaga",
