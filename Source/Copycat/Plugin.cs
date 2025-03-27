@@ -4,6 +4,7 @@ using Dalamud.Plugin;
 using Copycat.Windows;
 using System;
 using Dalamud.IoC;
+using ECommons;
 
 namespace Copycat
 {
@@ -44,6 +45,9 @@ namespace Copycat
             this.emoteHandler.isPlayerLoggedIn = new Func<bool>(isPlayerLoggedIn);
             this.emoteReader = new EmoteReaderHooks();
             emoteReader.OnEmote += this.emoteHandler.OnEmote;
+
+            // ECommons
+            ECommonsMain.Init(pluginInterface, this, ECommons.Module.All);
         }
         private static string? GetCurrentPlayerName()
         {
@@ -101,6 +105,7 @@ namespace Copycat
             Service.clientState.Logout -= ClientState_Logout;
             Service.commandManager.RemoveHandler(CommandName);
 
+            ECommonsMain.Dispose();
         }
 
         private void OnCommand(string command, string args)

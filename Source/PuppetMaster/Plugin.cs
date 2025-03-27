@@ -1,8 +1,9 @@
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
-
 using System;
+
+using ECommons;
 
 namespace PuppetMaster
 {
@@ -39,6 +40,9 @@ namespace PuppetMaster
 
             // Excel sheets
             Service.InitializeEmotes();
+
+            // ECommons
+            ECommonsMain.Init(pluginInterface, this, ECommons.Module.All);
         }
 
         public void Dispose()
@@ -47,6 +51,8 @@ namespace PuppetMaster
             Service.ChatGui.ChatMessage -= ChatHandler.OnChatMessage;
             Service.CommandManager.RemoveHandler(CommandName);
             GC.SuppressFinalize(this);
+
+            ECommonsMain.Dispose();
         }
 
         private void OnCommand(String command, String args)

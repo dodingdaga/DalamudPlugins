@@ -7,20 +7,40 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PuppetMaster", "PuppetMaste
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Copycat", "Copycat\Copycat.csproj", "{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{DFBC15F2-3A5F-4437-B309-73F848FD428F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
+		DebugForms|x64 = DebugForms|x64
 		Release|x64 = Release|x64
+		ReleaseForms|x64 = ReleaseForms|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.ActiveCfg = Debug|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.Build.0 = Debug|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.DebugForms|x64.ActiveCfg = Debug|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.DebugForms|x64.Build.0 = Debug|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.ActiveCfg = Release|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.Build.0 = Release|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.ReleaseForms|x64.ActiveCfg = Release|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.ReleaseForms|x64.Build.0 = Release|x64
 		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Debug|x64.ActiveCfg = Debug|x64
 		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Debug|x64.Build.0 = Debug|x64
+		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.DebugForms|x64.ActiveCfg = Debug|x64
+		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.DebugForms|x64.Build.0 = Debug|x64
 		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Release|x64.ActiveCfg = Release|x64
 		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Release|x64.Build.0 = Release|x64
+		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.ReleaseForms|x64.ActiveCfg = Release|x64
+		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.ReleaseForms|x64.Build.0 = Release|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Debug|x64.ActiveCfg = Debug|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Debug|x64.Build.0 = Debug|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.DebugForms|x64.ActiveCfg = DebugForms|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.DebugForms|x64.Build.0 = DebugForms|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Release|x64.ActiveCfg = Release|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Release|x64.Build.0 = Release|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.ReleaseForms|x64.ActiveCfg = ReleaseForms|x64
+		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.ReleaseForms|x64.Build.0 = ReleaseForms|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

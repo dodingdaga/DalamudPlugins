@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
+using ECommons.Automation;
+
 namespace PuppetMaster
 {
     public partial class ChatHandler
@@ -46,7 +48,7 @@ namespace PuppetMaster
                                 if (textCommand.Main == "/wait" && float.TryParse(textCommand.Args, out var seconds))
                                     Thread.Sleep((int)(Math.Clamp(seconds, 0.0, 60.0) * 1000.0));
                                 else
-                                    Chat.SendMessage($"{textCommand}");
+                                    Chat.Instance.SendMessage($"{textCommand}");
                             }
                         }
 #if DEBUG
