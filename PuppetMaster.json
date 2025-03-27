@@ -3,7 +3,7 @@
     "Author": "DodingDaga",
     "Name": "Puppet Master",
     "InternalName": "PuppetMaster",
-    "AssemblyVersion": "7.1.1.0",
+    "AssemblyVersion": "7.2.0.0",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -11,22 +11,22 @@
       "emote",
       "plugin"
     ],
-    "DalamudApiLevel": 11,
+    "DalamudApiLevel": 12,
     "LoadPriority": 0,
     "Punchline": "Let others tell you what to do.",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": "1732537768",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.1.1.0/latest.zip"
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_pp.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_pp.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_pp.zip"
   },
   {
     "Author": "DodingDaga",
     "Name": "Right Back At You",
     "InternalName": "Copycat",
-    "AssemblyVersion": "7.1.1.0",
+    "AssemblyVersion": "7.2.0.0",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -34,15 +34,15 @@
       "plugin",
       "emote"
     ],
-    "DalamudApiLevel": 11,
+    "DalamudApiLevel": 12,
     "LoadPriority": 0,
     "Punchline": "Nothing but a second-rate, trying hard, copycat!",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": "1733983950",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.1.1.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.1.1.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/cc7.1.1.0/latest.zip"
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip"
   }
 ]
