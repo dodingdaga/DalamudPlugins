@@ -26,7 +26,7 @@
     "Author": "DodingDaga",
     "Name": "Right Back At You",
     "InternalName": "Copycat",
-    "AssemblyVersion": "7.2.0.0",
+    "AssemblyVersion": "7.2.0.1",
     "Description": "For the lulz",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/dodingdaga/DalamudPlugins",
@@ -40,9 +40,9 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdated": "1743073029",
-    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip",
-    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip",
-    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/7.2.0.0/latest_cc.zip"
+    "LastUpdated": "1746126063",
+    "DownloadLinkInstall": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.2.0.1/latest_cc.zip",
+    "DownloadLinkTesting": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.2.0.1/latest_cc.zip",
+    "DownloadLinkUpdate": "https://github.com/dodingdaga/DalamudPlugins/releases/download/pp7.2.0.1/latest_cc.zip"
   }
 ]
