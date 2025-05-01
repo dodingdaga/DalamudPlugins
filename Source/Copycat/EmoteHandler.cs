@@ -36,11 +36,19 @@ namespace Copycat
             //Service.commonBase!.Functions.Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId)?.TextCommand.Value?.Command} {Service.configuration!.PlayerConfigurations[Service.playerIndex].MotionOnly}");
 
             //Temporary fix to XivCommon
-            
-            if (Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
-                Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()}");
-            else
-                Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()} motion");
+            try
+            {
+                if (Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
+                    Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()}");
+                else
+                    Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()} motion");
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                Service.chatGui.Print($"[Right Back At You][Debug] Error sending message: {ex.Message}");
+#endif
+            }
         }
     }
 }
