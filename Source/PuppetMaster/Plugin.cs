@@ -42,7 +42,7 @@ namespace PuppetMaster
             Service.InitializeEmotes();
 
             // ECommons
-            ECommonsMain.Init(pluginInterface, this, ECommons.Module.All);
+            ECommonsMain.Init(pluginInterface, this, Module.All);
         }
 
         public void Dispose()
