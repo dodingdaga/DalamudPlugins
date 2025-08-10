@@ -1,7 +1,7 @@
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
-using Dalamud.Interface.Windowing;
-using ImGuiNET;
 
 namespace Copycat.Windows;
 

@@ -39,9 +39,9 @@ namespace Copycat
             try
             {
                 if (Service.configuration.PlayerConfigurations[Service.playerIndex].MotionOnly.IsNullOrEmpty())
-                    Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()}");
+                    Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()}");
                 else
-                    Chat.Instance.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()} motion");
+                    Chat.SendMessage($"{emoteSheet.GetRow((uint)emoteId).TextCommand.ValueNullable?.Command.ExtractText()} motion");
             }
             catch (Exception ex)
             {
