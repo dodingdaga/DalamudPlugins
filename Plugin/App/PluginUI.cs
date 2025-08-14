@@ -1,16 +1,12 @@
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
-using Lumina.Data.Parsing.Uld;
+using Dalamud.Bindings.ImGui;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using static Dalamud.Interface.Utility.Raii.ImRaii;
 
 #nullable enable
 namespace PuppetMaster
@@ -129,7 +125,7 @@ namespace PuppetMaster
 
             string str = Service.configuration.DefaultUseRegex ? Service.configuration.DefaultCustomPhrase : Service.configuration.DefaultTriggerPhrase;
 
-            if (ImGui.InputText(Service.configuration.DefaultUseRegex ? "Default pattern" : "Default trigger", ref str, 500U))
+            if (ImGui.InputText(Service.configuration.DefaultUseRegex ? "Default pattern" : "Default trigger", ref str, 500))
             {
                 if (!Service.configuration.DefaultUseRegex)
                 {
@@ -181,7 +177,7 @@ namespace PuppetMaster
 
             string testInput = Service.configuration.DefaultTestInput;
 
-            if (ImGui.InputText("Test Input", ref testInput, 500U))
+            if (ImGui.InputText("Test Input", ref testInput))
             {
                 Service.configuration.DefaultTestInput = testInput;
                 Service.configuration.Save();
@@ -196,7 +192,7 @@ namespace PuppetMaster
 
                 string replaceMatch = Service.configuration.DefaultReplaceMatch;
 
-                if (ImGui.InputText("Replacement", ref replaceMatch, 500U))
+                if (ImGui.InputText("Replacement", ref replaceMatch))
                 {
                     Service.configuration.DefaultReplaceMatch = replaceMatch;
                     Service.configuration.Save();
@@ -283,7 +279,7 @@ namespace PuppetMaster
 
             if (ImGui.BeginChild("Whitelist_Selector", new Vector2(225f, -ImGui.GetFrameHeightWithSpacing()), true))
             {
-                ImGui.InputText("Search", ref this.currentWhitelistSelectorSearch, 200U);
+                ImGui.InputText("Search", ref this.currentWhitelistSelectorSearch, 200);
                 ImGui.Spacing();
 
                 for (int index = 0; index < WhitelistedPlayers.Count; index++)
@@ -308,11 +304,7 @@ namespace PuppetMaster
                                 this.currentDraggedWhitelistIndex = index;
                                 ImGui.Text("Dragging: " + (WhitelistedPlayer.PlayerName.Trim() == String.Empty ? WhitelistedPlayer.Id : WhitelistedPlayer.PlayerName.Trim()));
 
-                                unsafe
-                                {
-                                    int* draggedIndex = &index;
-                                    ImGui.SetDragDropPayload("DRAG_WHITELIST", new IntPtr(draggedIndex), sizeof(int));
-                                }
+                                ImGui.SetDragDropPayload("DRAG_WHITELIST", null, 0);
 
                                 ImGui.EndDragDropSource();
                             }
@@ -320,11 +312,7 @@ namespace PuppetMaster
                             if (ImGui.BeginDragDropTarget())
                             {
                                 ImGuiPayloadPtr acceptPayload = ImGui.AcceptDragDropPayload("DRAG_WHITELIST");
-                                bool isDropping = false;
-                                unsafe
-                                {
-                                    isDropping = acceptPayload.NativePtr != null;
-                                }
+                                bool isDropping = !acceptPayload.IsNull;
 
                                 if (isDropping)
                                 {
@@ -376,7 +364,7 @@ namespace PuppetMaster
                         ImGui.Separator();
                         ImGui.Spacing();
 
-                        if (ImGui.InputText("Player name", ref selectedWhitelistedPlayer.PlayerName, 500U))
+                        if (ImGui.InputText("Player name", ref selectedWhitelistedPlayer.PlayerName, 500))
                         {
                             Service.configuration.Save();
                         }
@@ -406,7 +394,7 @@ namespace PuppetMaster
 
                         // To do, maybe ? Add a dropdown menu with all worlds extracted from Lumina Sheets (in Service.Worlds)
 
-                        if (ImGui.InputText("Player World", ref selectedWhitelistedPlayer.PlayerWorld, 500U))
+                        if (ImGui.InputText("Player World", ref selectedWhitelistedPlayer.PlayerWorld, 500))
                         {
                             Service.configuration.Save();
                         }
@@ -470,7 +458,7 @@ namespace PuppetMaster
 
                                 string str = selectedWhitelistedPlayer.UseRegex ? selectedWhitelistedPlayer.CustomPhrase : selectedWhitelistedPlayer.TriggerPhrase;
 
-                                if (ImGui.InputText(selectedWhitelistedPlayer.UseRegex ? "Pattern" : "Trigger", ref str, 500U))
+                                if (ImGui.InputText(selectedWhitelistedPlayer.UseRegex ? "Pattern" : "Trigger", ref str, 500))
                                 {
                                     if (!selectedWhitelistedPlayer.UseRegex)
                                     {
@@ -513,7 +501,7 @@ namespace PuppetMaster
                                     }
                                 }
 
-                                if (ImGui.InputText("Test Input", ref selectedWhitelistedPlayer.TestInput, 500U))
+                                if (ImGui.InputText("Test Input", ref selectedWhitelistedPlayer.TestInput, 500))
                                 {
                                     Service.configuration.Save();
                                     selectedWhitelistedPlayer.textCommand = selectedWhitelistedPlayer.GetTestInputCommand();
@@ -525,7 +513,7 @@ namespace PuppetMaster
 
                                     string replaceMatch = selectedWhitelistedPlayer.ReplaceMatch;
 
-                                    if (ImGui.InputText("Replacement", ref selectedWhitelistedPlayer.ReplaceMatch, 500U))
+                                    if (ImGui.InputText("Replacement", ref selectedWhitelistedPlayer.ReplaceMatch, 500))
                                     {
                                         Service.configuration.Save();
                                         selectedWhitelistedPlayer.textCommand = selectedWhitelistedPlayer.GetTestInputCommand();
@@ -659,7 +647,7 @@ namespace PuppetMaster
 
             if (ImGui.BeginChild("Blacklist_Selector", new Vector2(225f, -ImGui.GetFrameHeightWithSpacing()), true))
             {
-                ImGui.InputText("Search", ref this.currentBlacklistSelectorSearch, 200U);
+                ImGui.InputText("Search", ref this.currentBlacklistSelectorSearch, 200);
                 ImGui.Spacing();
 
                 for (int index = 0; index < BlacklistedPlayers.Count; index++)
@@ -684,11 +672,7 @@ namespace PuppetMaster
                                 this.currentDraggedBlacklistIndex = index;
                                 ImGui.Text("Dragging: " + (BlacklistedPlayer.PlayerName.Trim() == String.Empty ? BlacklistedPlayer.Id : BlacklistedPlayer.PlayerName.Trim()));
 
-                                unsafe
-                                {
-                                    int* draggedIndexBl = &index;
-                                    ImGui.SetDragDropPayload("DRAG_BLACKLIST", new IntPtr(draggedIndexBl), sizeof(int));
-                                }
+                                ImGui.SetDragDropPayload("DRAG_BLACKLIST", null, 0);
 
                                 ImGui.EndDragDropSource();
                             }
@@ -696,11 +680,9 @@ namespace PuppetMaster
                             if (ImGui.BeginDragDropTarget())
                             {
                                 ImGuiPayloadPtr acceptPayload = ImGui.AcceptDragDropPayload("DRAG_BLACKLIST");
-                                bool isDropping = false;
-                                unsafe
-                                {
-                                    isDropping = acceptPayload.NativePtr != null;
-                                }
+                                bool isDropping = !acceptPayload.IsNull; ;
+           
+                                isDropping = acceptPayload.IsDelivery();
 
                                 if (isDropping)
                                 {
@@ -749,7 +731,7 @@ namespace PuppetMaster
                         ImGui.Separator();
                         ImGui.Spacing();
 
-                        if (ImGui.InputText("Player name", ref selectedBlacklistedPlayer.PlayerName, 99U))
+                        if (ImGui.InputText("Player name", ref selectedBlacklistedPlayer.PlayerName, 99))
                         {
                             Service.configuration.Save();
                         }
@@ -779,7 +761,7 @@ namespace PuppetMaster
 
                         // To do, maybe ? Add a dropdown menu with all worlds extracted from Lumina Sheets (in Service.Worlds)
 
-                        if (ImGui.InputText("Player World", ref selectedBlacklistedPlayer.PlayerWorld, 500U))
+                        if (ImGui.InputText("Player World", ref selectedBlacklistedPlayer.PlayerWorld, 500))
                         {
                             Service.configuration.Save();
                         }

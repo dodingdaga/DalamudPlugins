@@ -41,7 +41,7 @@ public static class Chat
 
             var oldLength = utf8->Length;
 
-            utf8->SanitizeString(0x27F, null);
+            utf8->SanitizeString(AllowedEntities.UppercaseLetters | AllowedEntities.LowercaseLetters | AllowedEntities.Numbers | AllowedEntities.SpecialCharacters | AllowedEntities.CharacterList | AllowedEntities.OtherCharacters | AllowedEntities.Payloads | AllowedEntities.Unknown9);
 
             if (utf8->Length != oldLength)
             {
