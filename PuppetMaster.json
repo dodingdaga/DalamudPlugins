@@ -16,14 +16,14 @@
       "plugin",
       "commands"
     ],
-    "DalamudApiLevel": 11,
+    "DalamudApiLevel": 13,
     "LoadPriority": 0,
     "Punchline": "Let others tell you what to do.",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
     "LastUpdated": 0,
-    "Changelog": "Enable/Disable Plugin\nWhitelist\nBlacklist\nDrag and Drop organization for both whitelist and blacklist\nPer-person specific settings\nDefault Settings\nVery few small tweaks\nReady for Dalamud API 10\nPlayer world check\nWhitelist behavior changed",
+    "Changelog": "Updated to API 13",
     "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip",
     "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip",
     "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip"
