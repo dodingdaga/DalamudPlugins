@@ -2,8 +2,8 @@
   {
     "Author": "DodingDaga, AS",
     "Name": "Puppet Master - A.S. Fork",
-    "InternalName": "PuppetMaster",
-    "AssemblyVersion": "7.3.1.0",
+    "InternalName": "PuppetMaster_Enhanced",
+    "AssemblyVersion": "1.0.0.69",
     "Description": "Let people control your character through chat.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Aspher0/PuppetMaster_Fork",
@@ -17,15 +17,14 @@
       "commands"
     ],
     "DalamudApiLevel": 13,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
     "LoadPriority": 0,
-    "Punchline": "Let others tell you what to do.",
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadCount": 0,
-    "LastUpdated": 0,
-    "Changelog": "Updated to API 13",
     "DownloadLinkInstall": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip",
     "DownloadLinkTesting": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip"
+    "DownloadLinkUpdate": "https://github.com/Aspher0/PuppetMaster_Fork/releases/download/7.3.1.0/latest.zip",
+    "Punchline": "Let others tell you what to do.",
+    "AcceptsFeedback": true
   }
 ]
