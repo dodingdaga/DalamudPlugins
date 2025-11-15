@@ -3,7 +3,6 @@
     "Name": "Puppet Master - A.S. Fork",
     "Punchline": "Let others tell you what to do.",
     "Description": "Let people control your character through chat.",
-    "InternalName": "PuppetMaster",
     "ApplicableVersion": "any",
     "Tags": [
         "puppet",
