@@ -51,12 +51,12 @@ namespace Copycat
         }
         private static string? GetCurrentPlayerName()
         {
-            if (Service.clientState == null || Service.clientState.LocalPlayer == null || Service.clientState.LocalPlayer.Name == null)
+            if (Service.objectTable == null || Service.objectTable.LocalPlayer == null || Service.objectTable.LocalPlayer.Name == null)
             {
                 return null;
             }
 
-            return Service.clientState.LocalPlayer.Name.TextValue;
+            return Service.objectTable.LocalPlayer.Name.TextValue;
         }
 
         public static bool isPlayerLoggedIn()

@@ -43,7 +43,7 @@ namespace Copycat
         {
             // unk - some field of event framework singleton? doesn't matter here anyway
             // this.chatGui.Print($" ukn:{unk} unk2:{unk2}");
-            if (Service.clientState.LocalPlayer != null && targetId == Service.clientState.LocalPlayer.GameObjectId)
+            if (Service.objectTable.LocalPlayer != null && targetId == Service.objectTable.LocalPlayer.GameObjectId)
             {
                 if (Service.objectTable.FirstOrDefault(x => (ulong)x.GameObjectId == targetId) is IPlayerCharacter targetOb && targetOb.ObjectKind == ObjectKind.Player)
                 {
