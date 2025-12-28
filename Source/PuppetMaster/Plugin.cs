@@ -10,7 +10,6 @@ namespace PuppetMaster
     public class Plugin : IDalamudPlugin
     {
         public static String Name => "PuppetMaster";
-        private const String CommandName = "/puppetmaster";
         public WindowSystem windowSystem = new("PuppetMaster");
         public ConfigWindow configWindow;
 
@@ -19,20 +18,16 @@ namespace PuppetMaster
             // Service
             pluginInterface.Create<Service>();
             Service.plugin = this;
-            
+
             // Configuration
             Service.InitializeConfig();
 
             this.configWindow = new ConfigWindow();
             windowSystem.AddWindow(configWindow);
 
-            // Handlers
-            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-            {
-                HelpMessage = @"Open settings dialog
-/puppetmaster on|off - enable or disable all reactions
-/puppetmaster on|off <ReactionName> - enable or disable reactions by name"
-            });
+            // Initialize commands
+            InitializeCommands();
+
             Service.ChatGui.ChatMessage += ChatHandler.OnChatMessage;
             Service.PluginInterface.UiBuilder.Draw += DrawUI;
             Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
@@ -45,12 +40,69 @@ namespace PuppetMaster
             ECommonsMain.Init(pluginInterface, this, Module.All);
         }
 
+        private void InitializeCommands()
+        {
+            var prefix = Service.configuration?.CommandPrefix?.Trim();
+            if (string.IsNullOrEmpty(prefix))
+            {
+                prefix = "/puppetmaster";
+                Service.configuration!.CommandPrefix = prefix;
+                Service.configuration.Save();
+            }
+
+            // Ensure prefix starts with /
+            if (!prefix.StartsWith("/"))
+            {
+                prefix = "/" + prefix;
+                Service.configuration!.CommandPrefix = prefix;
+                Service.configuration.Save();
+            }
+
+            // Register main command
+            Service.CommandManager.AddHandler(prefix, new CommandInfo(OnCommand)
+            {
+                HelpMessage = @"Open settings dialog
+" + prefix + @" on|off - enable or disable all reactions
+" + prefix + @" on|off <ReactionName> - enable or disable reactions by name
+" + prefix + @" debug - toggle debug mode
+" + prefix + @" list - list all reactions"
+            });
+
+            // Register short command alias if enabled
+            if (Service.configuration!.EnableShortCommand && prefix != "/pm")
+            {
+                Service.CommandManager.AddHandler("/pm", new CommandInfo(OnCommand)
+                {
+                    HelpMessage = "Short alias for PuppetMaster commands."
+                });
+            }
+        }
+
+        private void DisposeCommands()
+        {
+            var prefix = Service.configuration?.CommandPrefix ?? "/puppetmaster";
+
+            try
+            {
+                Service.CommandManager.RemoveHandler(prefix);
+            }
+            catch { }
+
+            if (Service.configuration?.EnableShortCommand == true)
+            {
+                try
+                {
+                    Service.CommandManager.RemoveHandler("/pm");
+                }
+                catch { }
+            }
+        }
+
         public void Dispose()
         {
-            windowSystem.RemoveAllWindows();
             Service.ChatGui.ChatMessage -= ChatHandler.OnChatMessage;
-            Service.CommandManager.RemoveHandler(CommandName);
-            GC.SuppressFinalize(this);
+            DisposeCommands();
+            windowSystem.RemoveAllWindows();
 
             ECommonsMain.Dispose();
         }
@@ -62,9 +114,28 @@ namespace PuppetMaster
             else
             {
                 var ptc = Service.FormatCommand($"/{args}");
-#if DEBUG
-                Service.ChatGui.Print($"[PuppetMaster][Debug] PARSED TEXT COMMAND: {ptc}");
-#endif
+
+                if (ptc.Main == "/debug")
+                {
+                    Service.semaphore.WaitOne();
+                    try
+                    {
+                        bool debugState = !Service.configuration!.EnableVerboseDebug;
+                        Service.configuration.EnableVerboseDebug = debugState;
+                        Service.configuration.Save();
+
+                        Service.ChatGui.Print($"[PuppetMaster] {(debugState ?
+                            Localization.Get("Command.DebugEnabled") :
+                            Localization.Get("Command.DebugDisabled"))}");
+                    }
+                    finally
+                    {
+                        Service.semaphore.Release();
+                    }
+                    return;
+                }
+                // Removed language command handling - moved to UI
+
                 void enableReactions(bool enable)
                 {
                     if (string.IsNullOrEmpty(ptc.Args))
@@ -72,6 +143,7 @@ namespace PuppetMaster
                     else
                         Service.SetEnabled(ptc.Args, enable);
                 }
+
                 if (ptc.Main.Equals("/on"))
                 {
                     enableReactions(true);
@@ -79,6 +151,27 @@ namespace PuppetMaster
                 else if (ptc.Main.Equals("/off"))
                 {
                     enableReactions(false);
+                }
+                else if (ptc.Main.Equals("/list"))
+                {
+                    Service.semaphore.WaitOne();
+                    try
+                    {
+                        Service.ChatGui.Print("[PuppetMaster] Reactions:");
+                        foreach (var reaction in Service.configuration!.Reactions)
+                        {
+                            Service.ChatGui.Print($"  - {reaction.Name}: {(reaction.Enabled ? "Enabled" : "Disabled")}");
+                        }
+                    }
+                    finally
+                    {
+                        Service.semaphore.Release();
+                    }
+                }
+                else
+                {
+                    Service.ChatGui.Print($"[PuppetMaster] {Localization.Get("Command.Unknown")} {args}");
+                    Service.ChatGui.Print($"[PuppetMaster] {Localization.Get("Command.Available")}");
                 }
             }
         }

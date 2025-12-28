@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.2.32630.192
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PuppetMaster", "PuppetMaster\PuppetMaster.csproj", "{13C812E9-0D42-4B95-8646-40EEBF30636F}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Copycat", "Copycat\Copycat.csproj", "{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{DFBC15F2-3A5F-4437-B309-73F848FD428F}"
 EndProject
@@ -25,14 +23,6 @@ Global
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.Build.0 = Release|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.ReleaseForms|x64.ActiveCfg = Release|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.ReleaseForms|x64.Build.0 = Release|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Debug|x64.ActiveCfg = Debug|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Debug|x64.Build.0 = Debug|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.DebugForms|x64.ActiveCfg = Debug|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.DebugForms|x64.Build.0 = Debug|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Release|x64.ActiveCfg = Release|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.Release|x64.Build.0 = Release|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.ReleaseForms|x64.ActiveCfg = Release|x64
-		{AB0D00B6-8C32-491D-BACE-EB73DC7F69E8}.ReleaseForms|x64.Build.0 = Release|x64
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Debug|x64.ActiveCfg = Debug|x64
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Debug|x64.Build.0 = Debug|x64
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.DebugForms|x64.ActiveCfg = DebugForms|x64
