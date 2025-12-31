@@ -93,19 +93,62 @@ namespace PuppetMaster
             }
         }
 
-        // Check cooldown
+        // Check cooldown for a specific reaction
         private static bool CheckCooldown(int index, float cooldownSeconds)
         {
+            // If cooldown is 0 or negative, always pass
             if (cooldownSeconds <= 0)
             {
-                Service.ChatGui.Print($"[PuppetMaster Debug] No cooldown, passing directly");
+                if (Service.configuration?.EnableVerboseDebug == true)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] No cooldown, passing directly");
+                }
                 return true;
             }
 
-            // Simplified logic...
-            return true; // Temporarily always return true
-        }
+            // Initialize cooldown tracking if not exists
+            if (!ReactionCooldowns.ContainsKey(index))
+            {
+                ReactionCooldowns[index] = DateTime.MinValue;
 
+                if (Service.configuration?.EnableVerboseDebug == true)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Initialized cooldown for reaction {index}");
+                }
+            }
+                // Calculate time since last trigger
+                var timeSinceLastTrigger = (DateTime.Now - ReactionCooldowns[index]).TotalSeconds;
+
+            if (Service.configuration?.EnableVerboseDebug == true)
+            {
+                SafeDebugPrint($"[PuppetMaster Debug] Cooldown check - Reaction {index}: " +
+                              $"Last trigger: {ReactionCooldowns[index]}, " +
+                              $"Time since: {timeSinceLastTrigger:F1}s, " +
+                              $"Required: {cooldownSeconds:F1}s");
+            }
+
+            // Check if cooldown has expired
+            if (timeSinceLastTrigger >= cooldownSeconds)
+            {
+                // Update cooldown time
+                ReactionCooldowns[index] = DateTime.Now;
+
+                if (Service.configuration?.EnableVerboseDebug == true)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Cooldown passed for reaction {index}");
+                }
+                return true;
+            }
+            else
+            {
+                if (Service.configuration?.EnableVerboseDebug == true)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Cooldown active for reaction {index}, " +
+                                  $"waiting {cooldownSeconds - timeSinceLastTrigger:F1}s more");
+                }
+                return false;
+            }
+        }
         // Simple and safe command execution method
         private static async Task ExecuteSimpleCommands(string[] lines, Reaction reaction, CancellationToken cancellationToken)
         {
@@ -344,108 +387,14 @@ namespace PuppetMaster
             // Check 3: Process according to trigger mode
             string command = string.Empty;
 
-            switch (reaction.TriggerMode)
+            command = ExtractCommandFromMessage(reaction, message, sender);
+
+            if (string.IsNullOrEmpty(command))
             {
-                case TriggerMode.SpecificPlayer:
-                    SafeDebugPrint($"[PuppetMaster Debug] Using Specific Player mode");
-
-                    // Check if sender is in specific player list
-                    if (!IsSpecificPlayer(sender, reaction.SpecificPlayers))
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] Sender not in specific player list");
-                        return;
-                    }
-                    SafeDebugPrint($"[PuppetMaster Debug] Sender is in specific player list");
-
-                    // Extract emote command from message
-                    command = ExtractEmoteFromMessage(message);
-                    SafeDebugPrint($"[PuppetMaster Debug] Extracted emote: {command}");
-
-                    if (string.IsNullOrEmpty(command))
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] No emote found in message");
-                        return;
-                    }
-                    break;
-
-                case TriggerMode.Regex:
-                    SafeDebugPrint($"[PuppetMaster Debug] Using Regex mode");
-                    SafeDebugPrint($"[PuppetMaster Debug] Regex pattern: {reaction.CustomPhrase}");
-                    SafeDebugPrint($"[PuppetMaster Debug] Replacement text: {reaction.ReplaceMatch}");
-                    SafeDebugPrint($"[PuppetMaster Debug] CustomRx: {(reaction.CustomRx == null ? "null" : "initialized")}");
-
-                    if (reaction.CustomRx == null)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] CustomRx not initialized, attempting initialization");
-                        Service.InitializeRegex(index, true);
-
-                        if (reaction.CustomRx == null)
-                        {
-                            SafeDebugPrint($"[PuppetMaster Debug] CustomRx initialization failed");
-                            return;
-                        }
-                    }
-
-                    var regexMatches = reaction.CustomRx!.Matches(message);
-                    SafeDebugPrint($"[PuppetMaster Debug] Regex match count: {regexMatches.Count}");
-
-                    if (regexMatches.Count == 0)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] No regex match");
-                        return;
-                    }
-
-                    try
-                    {
-                        command = reaction.CustomRx!.Replace(regexMatches[0].Value, reaction.ReplaceMatch);
-                        SafeDebugPrint($"[PuppetMaster Debug] Regex generated command: {command}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Service.ChatGui.PrintError($"[PuppetMaster] Regex replacement failed: {ex.Message}");
-                        return;
-                    }
-                    break;
-
-                case TriggerMode.Keyword:
-                default:
-                    SafeDebugPrint($"[PuppetMaster Debug] Using Keyword mode");
-                    SafeDebugPrint($"[PuppetMaster Debug] Keyword: {reaction.TriggerPhrase}");
-                    SafeDebugPrint($"[PuppetMaster Debug] Rx: {(reaction.Rx == null ? "null" : "initialized")}");
-
-                    if (reaction.Rx == null)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] Rx not initialized, attempting initialization");
-                        Service.InitializeRegex(index, true);
-
-                        if (reaction.Rx == null)
-                        {
-                            SafeDebugPrint($"[PuppetMaster Debug] Rx initialization failed");
-                            return;
-                        }
-                    }
-
-                    var keywordMatches = reaction.Rx!.Matches(message);
-                    SafeDebugPrint($"[PuppetMaster Debug] Keyword match count: {keywordMatches.Count}");
-
-                    if (keywordMatches.Count == 0)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] No keyword match");
-                        return;
-                    }
-
-                    try
-                    {
-                        command = reaction.Rx!.Replace(keywordMatches[0].Value, Service.GetDefaultReplaceMatch());
-                        SafeDebugPrint($"[PuppetMaster Debug] Keyword generated command: {command}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Service.ChatGui.PrintError($"[PuppetMaster] Keyword replacement failed: {ex.Message}");
-                        return;
-                    }
-                    break;
+                SafeDebugPrint($"[PuppetMaster Debug] No command extracted, skip execution");
+                return;
             }
+            SafeDebugPrint($"[PuppetMaster Debug] Final command to execute: {command}");
 
             if (string.IsNullOrEmpty(command))
             {
@@ -495,6 +444,131 @@ namespace PuppetMaster
             return false;
         }
 
+ 
+
+
+
+        private static string ExtractCommandFromMessage(Reaction reaction, string message, string sender)
+        {
+            SafeDebugPrint($"[PuppetMaster Debug] === ExtractCommandFromMessage开始 ===");
+  
+            switch (reaction.TriggerMode)
+            {
+                case TriggerMode.SpecificPlayer:
+                    // Specific Player Mode
+                    SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: SpecificPlayer mode");
+
+                    if (reaction.ScanFullMessageForEmote)
+                    {
+                        // Mode: Scan full message for emote (original behavior)
+                        var extractedEmote = ExtractEmoteFromMessage(message);
+                        SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage enabled, extracted emote: {extractedEmote}");
+                        return extractedEmote;
+                    }
+                    else
+                    {
+                        // Mode: Require exact match (Scheme B)
+                        // Strip leading/trailing spaces and check if the entire message is an emote name
+                        var trimmedMessage = message.Trim();
+                        var exactEmote = FindExactEmoteMatch(trimmedMessage);
+
+                        if (!string.IsNullOrEmpty(exactEmote))
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage disabled, exact emote match: {exactEmote}");
+                            return exactEmote;
+                        }
+                        else
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage disabled, no exact emote match for: '{trimmedMessage}'");
+                            return string.Empty;
+                        }
+                    }
+
+                case TriggerMode.Regex:
+                    // Regex Mode
+                    SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: Regex mode");
+
+                    if (reaction.CustomRx == null) return string.Empty;
+                    var matchRegex = reaction.CustomRx.Matches(message);
+                    if (matchRegex.Count == 0) return string.Empty;
+                    if (reaction.ScanFullMessageForEmote)
+                    {
+                        SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage enabled for Regex, using regex replacement");
+                        try
+                        {
+                            return reaction.CustomRx.Replace(matchRegex[0].Value, reaction.ReplaceMatch);
+                        }
+                        catch { return string.Empty; }
+                    }
+                    else
+                    {
+                        var matchedValue = matchRegex[0].Value.Trim();
+                        var fullMessageTrimmed = message.Trim();
+
+                        if (matchedValue == fullMessageTrimmed)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage disabled, exact regex match");
+                            try
+                            {
+                                return reaction.CustomRx.Replace(matchRegex[0].Value, reaction.ReplaceMatch);
+                            }
+                            catch { return string.Empty; }
+                        }
+                        else
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage disabled, not exact match");
+                            return string.Empty;
+                        }
+                    }
+
+                case TriggerMode.Keyword:
+                default:
+                    // Keyword Mode (default)
+                    SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: Keyword mode");
+
+                    if (reaction.ScanFullMessageForEmote)
+                    {
+                        // New mode: Extract emote from full message
+                        var emoteFromFullMessage = ExtractEmoteFromMessage(message);
+                        SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage enabled, extracted: {emoteFromFullMessage}");
+                        return emoteFromFullMessage;
+                    }
+                    else
+                    {
+                        // Original mode: Use regex replacement
+                        if (reaction.Rx == null) return string.Empty;
+                        var matchKeyword = reaction.Rx.Matches(message);
+                        if (matchKeyword.Count == 0) return string.Empty;
+
+                        try
+                        {
+                            return reaction.Rx.Replace(matchKeyword[0].Value, Service.GetDefaultReplaceMatch());
+                        }
+                        catch { return string.Empty; }
+                    }
+            }
+        }
+        // Helper method for exact emote matching (Scheme B for Specific Player mode)
+        private static string FindExactEmoteMatch(string message)
+        {
+            if (Service.Emotes == null || Service.Emotes.Count == 0) return string.Empty;
+
+            // Try to find an emote that exactly matches the message (case-insensitive)
+            foreach (var emote in Service.Emotes)
+            {
+                // Remove the leading slash for comparison
+                var emoteName = emote.TrimStart('/');
+
+                // Case-insensitive comparison
+                if (string.Equals(emoteName, message, StringComparison.OrdinalIgnoreCase))
+                {
+                    return emote; // Return the full emote command with slash
+                }
+            }
+
+            return string.Empty;
+        }
+
         // Extract emote command from message
         private static string ExtractEmoteFromMessage(string message)
         {
@@ -523,7 +597,7 @@ namespace PuppetMaster
                     if (emoteName.Length < 2) continue;
 
                     // Use regex to ensure word boundary matching
-                    var pattern = $@"\b{Regex.Escape(emoteName)}\b";
+                    var pattern = $@"(?:^|[\s\p{{P}}\W_]|(?<=[\p{{L}}\p{{N}}])){Regex.Escape(emoteName)}(?:$|[\s\p{{P}}\W_]|(?=[\p{{L}}\p{{N}}]))";
                     if (Regex.IsMatch(messageLower, pattern, RegexOptions.IgnoreCase))
                     {
                         return emote; // Return complete emote command
@@ -598,15 +672,30 @@ namespace PuppetMaster
                     continue;
                 }
 
-                // Check if message contains a valid emote
-                string emoteCommand = ExtractEmoteFromMessage(messageText);
-                if (string.IsNullOrEmpty(emoteCommand))
+                if (reaction.ScanFullMessageForEmote)
                 {
-                    if (Service.configuration.EnableVerboseDebug)
+                    string emoteCommand = ExtractEmoteFromMessage(messageText);
+                    if (string.IsNullOrEmpty(emoteCommand))
                     {
-                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but no emote found: {reaction.Name}");
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but no emote found in full message: {reaction.Name}");
+                        }
+                        continue;
                     }
-                    continue; // Specific player but no emote, not a valid match
+                }
+                else
+                {
+                    var trimmedMessage = messageText.Trim();
+                    var exactEmote = FindExactEmoteMatch(trimmedMessage);
+                    if (string.IsNullOrEmpty(exactEmote))
+                    {
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but message not exact emote: {reaction.Name}");
+                        }
+                        continue;
+                    }
                 }
 
                 // Execute Specific Player mode
@@ -667,22 +756,36 @@ namespace PuppetMaster
                     continue;
                 }
 
-                // IMPORTANT: Verify extracted text is a valid emote
-                try
+                if (reaction.ScanFullMessageForEmote)
                 {
-                    string extractedCommand = reaction.Rx.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
-                    if (string.IsNullOrEmpty(extractedCommand) || !Service.Emotes.Contains(extractedCommand.Split(' ')[0]))
+                    string extractedEmote = ExtractEmoteFromMessage(messageText);
+                    if (string.IsNullOrEmpty(extractedEmote))
                     {
                         if (Service.configuration.EnableVerboseDebug)
                         {
-                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode but not an emote: {reaction.Name}");
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword matched but no emote found in full message: {reaction.Name}");
                         }
-                        continue; // Keyword mode but extracted text is not an emote
+                        continue;
                     }
                 }
-                catch
+                else
                 {
-                    continue; // Extraction failed
+                    try
+                    {
+                        string extractedCommand = reaction.Rx.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
+                        if (string.IsNullOrEmpty(extractedCommand) || !Service.Emotes.Contains(extractedCommand.Split(' ')[0]))
+                        {
+                            if (Service.configuration.EnableVerboseDebug)
+                            {
+                                SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode but not an emote: {reaction.Name}");
+                            }
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
                 }
 
                 // Execute Keyword mode
@@ -733,22 +836,36 @@ namespace PuppetMaster
                 }
 
                 var matches = reaction.CustomRx.Matches(messageText);
-                if (matches.Count > 0)
-                {
-                    // Execute Regex mode
-                    DoCommand(index, type, messageText, senderText);
-
-                    if (Service.configuration.EnableVerboseDebug)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] ✓ Regex mode matched: {reaction.Name}");
-                    }
-                }
-                else
+                if (matches.Count == 0)
                 {
                     if (Service.configuration.EnableVerboseDebug)
                     {
                         SafeDebugPrint($"[PuppetMaster Debug] ✗ Regex mode not matched: {reaction.Name}");
                     }
+                    continue;
+                }
+
+                if (!reaction.ScanFullMessageForEmote)
+                {
+                    var matchedValue = matches[0].Value.Trim();
+                    var fullMessageTrimmed = messageText.Trim();
+
+                    if (matchedValue != fullMessageTrimmed)
+                    {
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Regex mode not exact match: {reaction.Name}");
+                        }
+                        continue;
+                    }
+                }
+
+                // Execute Regex mode
+                DoCommand(index, type, messageText, senderText);
+
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] ✓ Regex mode matched: {reaction.Name}");
                 }
             }
         }

@@ -52,6 +52,7 @@ namespace PuppetMaster
         public bool UseGlobalSpeakerFilter { get; set; } = true;
         public bool UseGlobalGameStateRestrictions { get; set; } = true;
         public bool UseGlobalChannels { get; set; } = true;
+        public bool ScanFullMessageForEmote { get; set; } = true;
 
         // Override settings (used when not using global settings)
         public List<string> OverridePlayerWhitelist { get; set; } = [];
@@ -64,6 +65,7 @@ namespace PuppetMaster
         public bool OverrideDisableInCombat { get; set; } = true;
         public bool OverrideDisableInCutscene { get; set; } = true;
         public bool OverrideDisableWhileLoading { get; set; } = true;
+
 
         // Convenience methods - get actual values to use
         public List<string> GetEffectivePlayerWhitelist(GlobalSettings global)

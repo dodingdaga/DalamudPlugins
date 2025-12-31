@@ -20,7 +20,6 @@ namespace PuppetMaster
         public static Configuration? configuration;
         public static Lumina.Excel.ExcelSheet<Emote>? emoteCommands;
         public static HashSet<String> Emotes = [];
-
         public static Semaphore semaphore = new(initialCount: 1, maximumCount: 1);
 
         private const uint CHANNEL_COUNT = 23;
@@ -132,7 +131,11 @@ namespace PuppetMaster
                 // Initialize OverrideCooldownSeconds
                 if (reaction.OverrideCooldownSeconds < 0)
                     reaction.OverrideCooldownSeconds = 0;
-
+                // Initialize ScanFullMessageForEmote (default to true for new behavior)
+                if (reaction.ScanFullMessageForEmote != true && reaction.ScanFullMessageForEmote != false)
+                {
+                    reaction.ScanFullMessageForEmote = true; // Default to scanning full message
+                }
                 // Game state restriction default values
                 if (reaction.DisableInCombat != true && reaction.DisableInCombat != false)
                     reaction.DisableInCombat = true;
@@ -164,6 +167,9 @@ namespace PuppetMaster
                     reaction.UseGlobalChannels = true;
             }
         }
+
+
+
 
         public static void InitializeEmotes()
         {
@@ -429,6 +435,7 @@ namespace PuppetMaster
             return result;
         }
 
+    
         // Test method for extracting emote
         private static string ExtractEmoteFromMessage(string message, int index)
         {

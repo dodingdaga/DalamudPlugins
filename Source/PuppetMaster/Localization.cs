@@ -116,6 +116,9 @@ namespace PuppetMaster
                 ["Common.AllowSit"] = "Allow \"sit\" or \"groundsit\" requests",
                 ["Common.MotionOnly"] = "Motion only",
                 ["Common.Tooltip.AllowAllCommands"] = "If a command contains subcommands, enclose the sequence in parentheses.\nFor placeholders, replace angle brackets with square brackets.\nExample: please do (ac \"Vercure\" [t])",
+                ["Common.ScanFullMessage"] = "Scan Full Message",
+                ["Common.Tooltip.ScanFullMessage.Default"] = "ON: Scan entire message for emote name.\nOFF: Use matched part only as command.",
+                ["Common.Tooltip.ScanFullMessage.SpecificPlayer"] = "ON: Scan entire message for emote name.\nOFF: Require message to exactly match an emote name.",
 
                 // Custom Channels
                 ["Custom.EnableDebugTypes"] = "Debug log types",
@@ -293,6 +296,9 @@ namespace PuppetMaster
                 ["Override.UsingGlobalChannels"] = "使用全局频道设置（{0}个频道）",
 
                 // Common settings
+                ["Common.ScanFullMessage"] = "扫描整条消息",
+                ["Common.Tooltip.ScanFullMessage.Default"]= "开启：扫描整条消息寻找情感动作\n关闭：仅使用匹配到的部分作为命令",
+                ["Common.Tooltip.ScanFullMessage.SpecificPlayer"] = "开启：扫描整条消息寻找情感动作\n关闭：要求消息精确等于情感动作名称",
                 ["Common.AllowAllCommands"] = "允许所有文本命令",
                 ["Common.AllowSit"] = "允许 \"sit\" 或 \"groundsit\" 请求",
                 ["Common.MotionOnly"] = "仅动作",

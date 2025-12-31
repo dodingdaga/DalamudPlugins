@@ -1022,6 +1022,31 @@ namespace PuppetMaster
                             ImGui.EndTooltip();
                         }
                     }
+                    var scanFullMessage = Service.configuration.Reactions[CurrentReactionIndex].ScanFullMessageForEmote;
+                    if (ImGui.Checkbox(Localization.Get("Common.ScanFullMessage"), ref scanFullMessage))
+                    {
+                        Service.semaphore.WaitOne();
+                        Service.configuration.Reactions[CurrentReactionIndex].ScanFullMessageForEmote = scanFullMessage;
+                        Service.configuration.Save();
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        Service.semaphore.Release();
+                    }
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+
+                        if (Service.configuration.Reactions[CurrentReactionIndex].TriggerMode == TriggerMode.SpecificPlayer)
+                        {
+                            ImGui.TextUnformatted(Localization.Get("Common.Tooltip.ScanFullMessage.SpecificPlayer"));
+                        }
+                        else
+                        {
+                            ImGui.TextUnformatted(Localization.Get("Common.Tooltip.ScanFullMessage.Default"));
+                        }
+
+                        ImGui.EndTooltip();
+                    }
 
                     var allowSit = Service.configuration.Reactions[CurrentReactionIndex].AllowSit;
                     if (ImGui.Checkbox(Localization.Get("Common.AllowSit"), ref allowSit))

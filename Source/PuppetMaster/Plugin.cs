@@ -134,7 +134,6 @@ namespace PuppetMaster
                     }
                     return;
                 }
-                // Removed language command handling - moved to UI
 
                 void enableReactions(bool enable)
                 {
