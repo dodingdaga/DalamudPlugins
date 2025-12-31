@@ -102,7 +102,25 @@ namespace PuppetMaster
                 }
             }
             // ========== End of command prefix validation ==========
+            // Initialize Pokemon mode settings
+            if (string.IsNullOrEmpty(configuration.PokemonActivationPassword))
+            {
+                // Default to English password
+                configuration.PokemonActivationPassword = "pokemon activate";
+            }
 
+            if (configuration.PokemonTimeoutMinutes < 0)
+            {
+                configuration.PokemonTimeoutMinutes = 30;
+            }
+
+            // Clear invalid activation data
+            if (configuration.PokemonActivationTime.HasValue &&
+                configuration.PokemonActivationTime.Value < DateTime.Now.AddDays(-1))
+            {
+                configuration.PokemonActivePlayer = null;
+                configuration.PokemonActivationTime = null;
+            }
             foreach (var reaction in configuration.Reactions)
             {
                 // Ensure new list fields are not null

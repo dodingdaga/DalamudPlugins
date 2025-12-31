@@ -25,6 +25,10 @@ namespace PuppetMaster
         private static DateTime LastDebugPrintTime = DateTime.MinValue;
         private const int DEBUG_MIN_INTERVAL_MS = 500; // Minimum interval for debug output 500ms
 
+        // Pokemon mode tracking
+        private static string? CurrentPokemonMaster = null;
+        private static DateTime PokemonModeActivationTime = DateTime.MinValue;
+
         public ChatHandler()
         {
         }
@@ -116,8 +120,8 @@ namespace PuppetMaster
                     SafeDebugPrint($"[PuppetMaster Debug] Initialized cooldown for reaction {index}");
                 }
             }
-                // Calculate time since last trigger
-                var timeSinceLastTrigger = (DateTime.Now - ReactionCooldowns[index]).TotalSeconds;
+            // Calculate time since last trigger
+            var timeSinceLastTrigger = (DateTime.Now - ReactionCooldowns[index]).TotalSeconds;
 
             if (Service.configuration?.EnableVerboseDebug == true)
             {
@@ -444,19 +448,21 @@ namespace PuppetMaster
             return false;
         }
 
- 
-
-
-
         private static string ExtractCommandFromMessage(Reaction reaction, string message, string sender)
         {
             SafeDebugPrint($"[PuppetMaster Debug] === ExtractCommandFromMessage开始 ===");
-  
+
             switch (reaction.TriggerMode)
             {
                 case TriggerMode.SpecificPlayer:
                     // Specific Player Mode
                     SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: SpecificPlayer mode");
+
+                    if (reaction.AllowAllCommands)
+                    {
+                        // AllowAllCommands mode: try to extract raw command
+                        return ExtractRawCommandForSpecificPlayer(message, reaction);
+                    }
 
                     if (reaction.ScanFullMessageForEmote)
                     {
@@ -468,7 +474,6 @@ namespace PuppetMaster
                     else
                     {
                         // Mode: Require exact match (Scheme B)
-                        // Strip leading/trailing spaces and check if the entire message is an emote name
                         var trimmedMessage = message.Trim();
                         var exactEmote = FindExactEmoteMatch(trimmedMessage);
 
@@ -485,12 +490,13 @@ namespace PuppetMaster
                     }
 
                 case TriggerMode.Regex:
-                    // Regex Mode
+                    // Regex Mode - Always highest priority
                     SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: Regex mode");
 
                     if (reaction.CustomRx == null) return string.Empty;
                     var matchRegex = reaction.CustomRx.Matches(message);
                     if (matchRegex.Count == 0) return string.Empty;
+
                     if (reaction.ScanFullMessageForEmote)
                     {
                         SafeDebugPrint($"[PuppetMaster Debug] ScanFullMessage enabled for Regex, using regex replacement");
@@ -526,6 +532,12 @@ namespace PuppetMaster
                     // Keyword Mode (default)
                     SafeDebugPrint($"[PuppetMaster Debug] ExtractCommand: Keyword mode");
 
+                    if (reaction.AllowAllCommands)
+                    {
+                        // AllowAllCommands mode: try to extract raw command from keyword match
+                        return ExtractRawCommandForKeyword(message, reaction);
+                    }
+
                     if (reaction.ScanFullMessageForEmote)
                     {
                         // New mode: Extract emote from full message
@@ -548,6 +560,7 @@ namespace PuppetMaster
                     }
             }
         }
+
         // Helper method for exact emote matching (Scheme B for Specific Player mode)
         private static string FindExactEmoteMatch(string message)
         {
@@ -612,10 +625,169 @@ namespace PuppetMaster
             return string.Empty;
         }
 
+        // Extract raw command for Specific Player mode when AllowAllCommands is enabled
+        private static string ExtractRawCommandForSpecificPlayer(string message, Reaction reaction)
+        {
+            SafeDebugPrint($"[PuppetMaster Debug] AllowAllCommands enabled for SpecificPlayer, extracting raw command");
+
+            // For Specific Player mode, use the entire message as command
+            var trimmedMessage = message.Trim();
+            if (string.IsNullOrEmpty(trimmedMessage))
+                return string.Empty;
+
+            // Add / prefix if not already present
+            if (!trimmedMessage.StartsWith("/"))
+                trimmedMessage = "/" + trimmedMessage;
+
+            SafeDebugPrint($"[PuppetMaster Debug] Raw command extracted: {trimmedMessage}");
+            return trimmedMessage;
+        }
+
+        // Extract raw command for Keyword mode when AllowAllCommands is enabled
+        private static string ExtractRawCommandForKeyword(string message, Reaction reaction)
+        {
+            SafeDebugPrint($"[PuppetMaster Debug] AllowAllCommands enabled for Keyword, extracting raw command");
+
+            if (reaction.Rx == null) return string.Empty;
+            var matches = reaction.Rx.Matches(message);
+            if (matches.Count == 0) return string.Empty;
+
+            // Try to extract the text after keyword
+            var match = matches[0];
+            string rawText = string.Empty;
+
+            // Look for captured groups in the regex match
+            if (match.Groups.Count > 1)
+            {
+                // Use the first capture group
+                rawText = match.Groups[1].Value.Trim();
+            }
+            else
+            {
+                // Fallback: extract text after the keyword match
+                int matchEnd = match.Index + match.Length;
+                if (matchEnd < message.Length)
+                {
+                    rawText = message.Substring(matchEnd).Trim();
+                }
+            }
+
+            if (string.IsNullOrEmpty(rawText))
+                return string.Empty;
+
+            // Add / prefix if not already present
+            if (!rawText.StartsWith("/"))
+                rawText = "/" + rawText;
+
+            SafeDebugPrint($"[PuppetMaster Debug] Raw command extracted: {rawText}");
+            return rawText;
+        }
+
         // Extract pure player name (remove server name)
         private static string ExtractPlayerName(string sender)
         {
             return sender.Split('@')[0];
+        }
+
+        // Check if Pokemon mode is active and not expired
+        private static bool IsPokemonModeActive()
+        {
+            if (string.IsNullOrEmpty(CurrentPokemonMaster) || Service.configuration == null)
+                return false;
+
+            // Check timeout
+            if (Service.configuration.PokemonModeEnabled &&
+                Service.configuration.PokemonTimeoutMinutes > 0)
+            {
+                var timeoutSpan = TimeSpan.FromMinutes(Service.configuration.PokemonTimeoutMinutes);
+                if (DateTime.Now - PokemonModeActivationTime > timeoutSpan)
+                {
+                    // Timeout reached, deactivate
+                    CurrentPokemonMaster = null;
+                    SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode timeout reached");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Activate Pokemon mode for a player
+        private static void ActivatePokemonMode(string playerName)
+        {
+            CurrentPokemonMaster = playerName;
+            PokemonModeActivationTime = DateTime.Now;
+            SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode activated for: {playerName}");
+
+            // Notify in chat if debug is enabled
+            if (Service.configuration?.EnableVerboseDebug == true)
+            {
+                Service.ChatGui.Print($"[PuppetMaster] Pokemon mode activated for {ExtractPlayerName(playerName)}");
+            }
+        }
+
+        // Deactivate Pokemon mode
+        private static void DeactivatePokemonMode()
+        {
+            if (!string.IsNullOrEmpty(CurrentPokemonMaster))
+            {
+                SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode deactivated for: {CurrentPokemonMaster}");
+                CurrentPokemonMaster = null;
+            }
+        }
+
+        // Check if message contains Pokemon activation password
+        private static bool IsPokemonPassword(string message, string sender)
+        {
+            if (Service.configuration == null ||
+                !Service.configuration.PokemonModeEnabled ||
+                string.IsNullOrEmpty(Service.configuration.PokemonActivationPassword))
+                return false;
+
+            // Check if sender is self
+            var senderName = ExtractPlayerName(sender);
+            var localPlayerName = ExtractPlayerName(Service.ObjectTable?.LocalPlayer?.Name.ToString() ?? "");
+            if (senderName.Equals(localPlayerName, StringComparison.OrdinalIgnoreCase))
+                return false; // Cannot activate Pokemon mode for self
+
+            // Check if message matches password
+            var trimmedMessage = message.Trim();
+            return trimmedMessage.Equals(Service.configuration.PokemonActivationPassword, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Execute command in Pokemon mode
+        private static void ExecutePokemonCommand(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return;
+
+            var lines = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                {
+                    string command = trimmed.StartsWith("/") ? trimmed : "/" + trimmed;
+                    SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode executing: {command}");
+
+                    // Execute on framework thread
+                    Service.Framework.RunOnFrameworkThread(() =>
+                    {
+                        try
+                        {
+                            Chat.SendMessage(command);
+                        }
+                        catch (Exception ex)
+                        {
+                            Service.ChatGui.PrintError($"[PuppetMaster] Failed to execute Pokemon command: {ex.Message}");
+                        }
+                    });
+
+                    // Small delay between commands
+                    Thread.Sleep(300);
+                }
+            }
         }
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
@@ -635,180 +807,26 @@ namespace PuppetMaster
                 SafeDebugPrint($"[PuppetMaster Debug] Total reactions: {Service.configuration.Reactions.Count}");
             }
 
-            // Track which modes have been matched
-            bool specificPlayerMatched = false;
-
-            // First pass: Check Specific Player mode (highest priority)
-            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+            // ========== Step 1: Check Pokemon mode ==========
+            if (Service.configuration.PokemonModeEnabled)
             {
-                var reaction = Service.configuration.Reactions[index];
-                if (!reaction.Enabled || reaction.TriggerMode != TriggerMode.SpecificPlayer)
+                // Check for Pokemon activation password
+                if (IsPokemonPassword(messageText, senderText))
                 {
-                    continue;
+                    ActivatePokemonMode(senderText);
+                    return;
                 }
 
-                if (Service.configuration.EnableVerboseDebug)
+                // Check if Pokemon mode is active and this is the master
+                if (IsPokemonModeActive() && senderText == CurrentPokemonMaster)
                 {
-                    SafeDebugPrint($"[PuppetMaster Debug] Checking Specific Player mode: {reaction.Name}");
-                }
-
-                // Check if sender is in specific player list
-                if (!IsSpecificPlayer(senderText, reaction.SpecificPlayers))
-                {
-                    if (Service.configuration.EnableVerboseDebug)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Not a specific player: {reaction.Name}");
-                    }
-                    continue;
-                }
-
-                // IMPORTANT FIX: Also check speaker filter for specific player mode
-                if (!ApplySpeakerFilter(senderText, reaction.GetSpeakerFilter()))
-                {
-                    if (Service.configuration.EnableVerboseDebug)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Speaker filter failed for specific player: {reaction.Name}");
-                    }
-                    continue;
-                }
-
-                if (reaction.ScanFullMessageForEmote)
-                {
-                    string emoteCommand = ExtractEmoteFromMessage(messageText);
-                    if (string.IsNullOrEmpty(emoteCommand))
-                    {
-                        if (Service.configuration.EnableVerboseDebug)
-                        {
-                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but no emote found in full message: {reaction.Name}");
-                        }
-                        continue;
-                    }
-                }
-                else
-                {
-                    var trimmedMessage = messageText.Trim();
-                    var exactEmote = FindExactEmoteMatch(trimmedMessage);
-                    if (string.IsNullOrEmpty(exactEmote))
-                    {
-                        if (Service.configuration.EnableVerboseDebug)
-                        {
-                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but message not exact emote: {reaction.Name}");
-                        }
-                        continue;
-                    }
-                }
-
-                // Execute Specific Player mode
-                DoCommand(index, type, messageText, senderText);
-                specificPlayerMatched = true;
-
-                if (Service.configuration.EnableVerboseDebug)
-                {
-                    SafeDebugPrint($"[PuppetMaster Debug] ✓ Specific Player mode matched: {reaction.Name}");
+                    ExecutePokemonCommand(messageText);
+                    return; // Pokemon mode takes highest priority
                 }
             }
 
-            // If Specific Player mode matched, return immediately (highest priority)
-            if (specificPlayerMatched)
-            {
-                if (Service.configuration.EnableVerboseDebug)
-                {
-                    SafeDebugPrint($"[PuppetMaster Debug] Specific Player mode matched, ending processing");
-                }
-                return;
-            }
-
-            // Second pass: Check Keyword mode (medium priority)
-            bool anyKeywordMatched = false;
-            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
-            {
-                var reaction = Service.configuration.Reactions[index];
-                if (!reaction.Enabled || reaction.TriggerMode != TriggerMode.Keyword)
-                {
-                    continue;
-                }
-
-                if (Service.configuration.EnableVerboseDebug)
-                {
-                    SafeDebugPrint($"[PuppetMaster Debug] Checking Keyword mode: {reaction.Name}");
-                }
-
-                // Check speaker filter
-                if (!ApplySpeakerFilter(senderText, reaction.GetSpeakerFilter()))
-                {
-                    continue;
-                }
-
-                // Check if regex matches (Keyword mode uses Rx)
-                if (reaction.Rx == null)
-                {
-                    Service.InitializeRegex(index, true);
-                    if (reaction.Rx == null) continue;
-                }
-
-                var matches = reaction.Rx.Matches(messageText);
-                if (matches.Count == 0)
-                {
-                    if (Service.configuration.EnableVerboseDebug)
-                    {
-                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode not matched: {reaction.Name}");
-                    }
-                    continue;
-                }
-
-                if (reaction.ScanFullMessageForEmote)
-                {
-                    string extractedEmote = ExtractEmoteFromMessage(messageText);
-                    if (string.IsNullOrEmpty(extractedEmote))
-                    {
-                        if (Service.configuration.EnableVerboseDebug)
-                        {
-                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword matched but no emote found in full message: {reaction.Name}");
-                        }
-                        continue;
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        string extractedCommand = reaction.Rx.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
-                        if (string.IsNullOrEmpty(extractedCommand) || !Service.Emotes.Contains(extractedCommand.Split(' ')[0]))
-                        {
-                            if (Service.configuration.EnableVerboseDebug)
-                            {
-                                SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode but not an emote: {reaction.Name}");
-                            }
-                            continue;
-                        }
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-                }
-
-                // Execute Keyword mode
-                DoCommand(index, type, messageText, senderText);
-                anyKeywordMatched = true;
-
-                if (Service.configuration.EnableVerboseDebug)
-                {
-                    SafeDebugPrint($"[PuppetMaster Debug] ✓ Keyword mode matched: {reaction.Name}");
-                }
-            }
-
-            // If any Keyword mode matched, skip Regex mode
-            if (anyKeywordMatched)
-            {
-                if (Service.configuration.EnableVerboseDebug)
-                {
-                    SafeDebugPrint($"[PuppetMaster Debug] Keyword mode matched, skipping Regex mode");
-                }
-                return;
-            }
-
-            // Third pass: Check Regex mode (lowest priority)
+            // ========== Step 2: Check Regex mode (highest priority) ==========
+            bool anyRegexMatched = false;
             for (var index = 0; index < Service.configuration.Reactions.Count; index++)
             {
                 var reaction = Service.configuration.Reactions[index];
@@ -862,14 +880,191 @@ namespace PuppetMaster
 
                 // Execute Regex mode
                 DoCommand(index, type, messageText, senderText);
+                anyRegexMatched = true;
 
                 if (Service.configuration.EnableVerboseDebug)
                 {
                     SafeDebugPrint($"[PuppetMaster Debug] ✓ Regex mode matched: {reaction.Name}");
                 }
             }
-        }
 
+            // If Regex mode matched, skip other modes
+            if (anyRegexMatched)
+            {
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Regex mode matched, skipping other modes");
+                }
+                return;
+            }
+
+            // ========== Step 3: Check Specific Player mode ==========
+            bool specificPlayerMatched = false;
+            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+            {
+                var reaction = Service.configuration.Reactions[index];
+                if (!reaction.Enabled || reaction.TriggerMode != TriggerMode.SpecificPlayer)
+                {
+                    continue;
+                }
+
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Checking Specific Player mode: {reaction.Name}");
+                }
+
+                // Check if sender is in specific player list
+                if (!IsSpecificPlayer(senderText, reaction.SpecificPlayers))
+                {
+                    if (Service.configuration.EnableVerboseDebug)
+                    {
+                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Not a specific player: {reaction.Name}");
+                    }
+                    continue;
+                }
+
+                // Check speaker filter
+                if (!ApplySpeakerFilter(senderText, reaction.GetSpeakerFilter()))
+                {
+                    if (Service.configuration.EnableVerboseDebug)
+                    {
+                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Speaker filter failed for specific player: {reaction.Name}");
+                    }
+                    continue;
+                }
+
+                if (reaction.AllowAllCommands)
+                {
+                    // AllowAllCommands enabled: skip emote checks, will be handled in ExtractCommandFromMessage
+                }
+                else if (reaction.ScanFullMessageForEmote)
+                {
+                    string emoteCommand = ExtractEmoteFromMessage(messageText);
+                    if (string.IsNullOrEmpty(emoteCommand))
+                    {
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but no emote found in full message: {reaction.Name}");
+                        }
+                        continue;
+                    }
+                }
+                else
+                {
+                    var trimmedMessage = messageText.Trim();
+                    var exactEmote = FindExactEmoteMatch(trimmedMessage);
+                    if (string.IsNullOrEmpty(exactEmote))
+                    {
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Specific player but message not exact emote: {reaction.Name}");
+                        }
+                        continue;
+                    }
+                }
+
+                // Execute Specific Player mode
+                DoCommand(index, type, messageText, senderText);
+                specificPlayerMatched = true;
+
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] ✓ Specific Player mode matched: {reaction.Name}");
+                }
+            }
+
+            // If Specific Player mode matched, skip Keyword mode
+            if (specificPlayerMatched)
+            {
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Specific Player mode matched, skipping Keyword mode");
+                }
+                return;
+            }
+
+            // ========== Step 4: Check Keyword mode (lowest priority) ==========
+            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+            {
+                var reaction = Service.configuration.Reactions[index];
+                if (!reaction.Enabled || reaction.TriggerMode != TriggerMode.Keyword)
+                {
+                    continue;
+                }
+
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Checking Keyword mode: {reaction.Name}");
+                }
+
+                // Check speaker filter
+                if (!ApplySpeakerFilter(senderText, reaction.GetSpeakerFilter()))
+                {
+                    continue;
+                }
+
+                // Check if regex matches (Keyword mode uses Rx)
+                if (reaction.Rx == null)
+                {
+                    Service.InitializeRegex(index, true);
+                    if (reaction.Rx == null) continue;
+                }
+
+                var matches = reaction.Rx.Matches(messageText);
+                if (matches.Count == 0)
+                {
+                    if (Service.configuration.EnableVerboseDebug)
+                    {
+                        SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode not matched: {reaction.Name}");
+                    }
+                    continue;
+                }
+
+                if (reaction.AllowAllCommands)
+                {
+                    // AllowAllCommands enabled: skip emote checks, will be handled in ExtractCommandFromMessage
+                }
+                else if (reaction.ScanFullMessageForEmote)
+                {
+                    string extractedEmote = ExtractEmoteFromMessage(messageText);
+                    if (string.IsNullOrEmpty(extractedEmote))
+                    {
+                        if (Service.configuration.EnableVerboseDebug)
+                        {
+                            SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword matched but no emote found in full message: {reaction.Name}");
+                        }
+                        continue;
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        string extractedCommand = reaction.Rx.Replace(matches[0].Value, Service.GetDefaultReplaceMatch());
+                        if (string.IsNullOrEmpty(extractedCommand) || !Service.Emotes.Contains(extractedCommand.Split(' ')[0]))
+                        {
+                            if (Service.configuration.EnableVerboseDebug)
+                            {
+                                SafeDebugPrint($"[PuppetMaster Debug] ✗ Keyword mode but not an emote: {reaction.Name}");
+                            }
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
+
+                // Execute Keyword mode
+                DoCommand(index, type, messageText, senderText);
+
+                if (Service.configuration.EnableVerboseDebug)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] ✓ Keyword mode matched: {reaction.Name}");
+                }
+            }
+        }
 
         // Apply speaker filter
         private static bool ApplySpeakerFilter(string sender, SpeakerFilterMode filterMode)
