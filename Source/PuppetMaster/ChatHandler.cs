@@ -5,6 +5,7 @@ using Dalamud.Utility;
 using ECommons.Automation;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,9 +26,6 @@ namespace PuppetMaster
         private static DateTime LastDebugPrintTime = DateTime.MinValue;
         private const int DEBUG_MIN_INTERVAL_MS = 500; // Minimum interval for debug output 500ms
 
-        // Pokemon mode tracking
-        private static string? CurrentPokemonMaster = null;
-        private static DateTime PokemonModeActivationTime = DateTime.MinValue;
 
         public ChatHandler()
         {
@@ -153,6 +151,7 @@ namespace PuppetMaster
                 return false;
             }
         }
+
         // Simple and safe command execution method
         private static async Task ExecuteSimpleCommands(string[] lines, Reaction reaction, CancellationToken cancellationToken)
         {
@@ -391,7 +390,7 @@ namespace PuppetMaster
             // Check 3: Process according to trigger mode
             string command = string.Empty;
 
-            command = ExtractCommandFromMessage(reaction, message, sender);
+            command = ExtractCommandFromMessage(reaction, message, sender, index);
 
             if (string.IsNullOrEmpty(command))
             {
@@ -399,14 +398,6 @@ namespace PuppetMaster
                 return;
             }
             SafeDebugPrint($"[PuppetMaster Debug] Final command to execute: {command}");
-
-            if (string.IsNullOrEmpty(command))
-            {
-                SafeDebugPrint($"[PuppetMaster Debug] Generated command is empty");
-                return;
-            }
-
-            SafeDebugPrint($"[PuppetMaster Debug] Final command: {command}");
 
             // Execute command
             var linesArray = MyRegex().Split(command.ToString());
@@ -448,9 +439,9 @@ namespace PuppetMaster
             return false;
         }
 
-        private static string ExtractCommandFromMessage(Reaction reaction, string message, string sender)
+        private static string ExtractCommandFromMessage(Reaction reaction, string message, string sender, int reactionIndex = -1)
         {
-            SafeDebugPrint($"[PuppetMaster Debug] === ExtractCommandFromMessage开始 ===");
+            SafeDebugPrint($"[PuppetMaster Debug] === ExtractCommandFromMessage开始 ===, index={reactionIndex}");
 
             switch (reaction.TriggerMode)
             {
@@ -535,7 +526,8 @@ namespace PuppetMaster
                     if (reaction.AllowAllCommands)
                     {
                         // AllowAllCommands mode: try to extract raw command from keyword match
-                        return ExtractRawCommandForKeyword(message, reaction);
+                        SafeDebugPrint($"[PuppetMaster Debug] AllowAllCommands enabled, reaction index={reactionIndex}");
+                        return ExtractRawCommandForKeyword(message, reaction, reactionIndex);
                     }
 
                     if (reaction.ScanFullMessageForEmote)
@@ -548,7 +540,16 @@ namespace PuppetMaster
                     else
                     {
                         // Original mode: Use regex replacement
-                        if (reaction.Rx == null) return string.Empty;
+                        if (reaction.Rx == null)
+                        {
+                            int index = reactionIndex >= 0 ? reactionIndex : FindReactionIndex(reaction);
+                            if (index >= 0)
+                            {
+                                Service.InitializeRegex(index, true);
+                            }
+                            if (reaction.Rx == null) return string.Empty;
+                        }
+
                         var matchKeyword = reaction.Rx.Matches(message);
                         if (matchKeyword.Count == 0) return string.Empty;
 
@@ -643,44 +644,220 @@ namespace PuppetMaster
             return trimmedMessage;
         }
 
-        // Extract raw command for Keyword mode when AllowAllCommands is enabled
-        private static string ExtractRawCommandForKeyword(string message, Reaction reaction)
+        public static string ExtractRawCommandForKeywordPublic(string message, Reaction reaction, int reactionIndex = -1)
         {
-            SafeDebugPrint($"[PuppetMaster Debug] AllowAllCommands enabled for Keyword, extracting raw command");
+            return ExtractRawCommandForKeyword(message, reaction, reactionIndex);
+        }
 
-            if (reaction.Rx == null) return string.Empty;
-            var matches = reaction.Rx.Matches(message);
-            if (matches.Count == 0) return string.Empty;
+        // Extract raw command for Keyword mode when AllowAllCommands is enabled
+        private static string ExtractRawCommandForKeyword(string message, Reaction reaction, int reactionIndex = -1)
+        {
+            SafeDebugPrint($"[PuppetMaster Debug] ExtractRawCommandForKeyword: reaction={reaction.Name}, index={reactionIndex}, message='{message}'");
 
-            // Try to extract the text after keyword
-            var match = matches[0];
-            string rawText = string.Empty;
-
-            // Look for captured groups in the regex match
-            if (match.Groups.Count > 1)
+            // Ensure Rx is initialized
+            if (reaction.Rx == null)
             {
-                // Use the first capture group
-                rawText = match.Groups[1].Value.Trim();
-            }
-            else
-            {
-                // Fallback: extract text after the keyword match
-                int matchEnd = match.Index + match.Length;
-                if (matchEnd < message.Length)
+                if (reactionIndex < 0)
                 {
-                    rawText = message.Substring(matchEnd).Trim();
+                    reactionIndex = FindReactionIndex(reaction);
+                }
+
+                if (reactionIndex >= 0)
+                {
+                    Service.InitializeRegex(reactionIndex, true);
+                }
+
+                if (reaction.Rx == null)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] Rx initialization failed");
+                    return string.Empty;
                 }
             }
 
-            if (string.IsNullOrEmpty(rawText))
+            // Perform keyword match
+            var match = reaction.Rx.Match(message);
+            if (!match.Success)
+            {
+                SafeDebugPrint($"[PuppetMaster Debug] Keyword not matched in message");
                 return string.Empty;
+            }
 
-            // Add / prefix if not already present
-            if (!rawText.StartsWith("/"))
-                rawText = "/" + rawText;
+            SafeDebugPrint($"[PuppetMaster Debug] Keyword matched at position {match.Index}, length {match.Length}");
 
-            SafeDebugPrint($"[PuppetMaster Debug] Raw command extracted: {rawText}");
-            return rawText;
+            // Start from after the keyword match
+            int startPos = match.Index + match.Length;
+
+            // Check if there's an explicit # terminator
+            int hashIndex = message.IndexOf('#', startPos);
+            bool hasExplicitTerminator = hashIndex >= startPos;
+
+            string rawText;
+
+            if (hasExplicitTerminator)
+            {
+                // Case A: Has explicit # terminator
+                // Extract everything between keyword and #
+                rawText = message.Substring(startPos, hashIndex - startPos).Trim();
+                SafeDebugPrint($"[PuppetMaster Debug] Using # explicit terminator, extracted: '{rawText}'");
+            }
+            else
+            {
+                // Case B: No explicit terminator
+                // Skip whitespace and basic punctuation
+                startPos = SkipSeparators(message, startPos);
+
+                if (startPos >= message.Length)
+                {
+                    SafeDebugPrint($"[PuppetMaster Debug] No text after keyword");
+                    return string.Empty;
+                }
+
+                // Extract FF14 command (handles quotes, angle brackets, etc.)
+                rawText = ExtractFF14Command(message, startPos);
+                SafeDebugPrint($"[PuppetMaster Debug] No # terminator, extracted: '{rawText}'");
+            }
+
+            // Format and return command
+            return FormatCommand(rawText);
+        }
+
+        // Skip whitespace and basic punctuation
+        private static int SkipSeparators(string text, int start)
+        {
+            // Basic separators to skip
+            string separators = " 　\t\r\n，。？！,.\"“”'‘’!?:;、；：";
+
+            while (start < text.Length && separators.Contains(text[start]))
+            {
+                start++;
+            }
+
+            return start;
+        }
+
+        // Extract FF14 command with proper syntax handling (for non-# case)
+        private static string ExtractFF14Command(string message, int startPos)
+        {
+            StringBuilder result = new StringBuilder();
+            bool inQuotes = false;
+            bool inAngleBrackets = false;
+            char quoteChar = '\0';
+
+            for (int i = startPos; i < message.Length; i++)
+            {
+                char c = message[i];
+
+                // Check for # (should not happen here since we already checked)
+                if (c == '#')
+                {
+                    break;
+                }
+
+                // Handle quotes
+                if (c == '"' || c == '\'' || c == '＂' || c == '＇' || c == '“' || c == '”' || c == '‘' || c == '’')
+                {
+                    if (!inQuotes)
+                    {
+                        inQuotes = true;
+                        quoteChar = c;
+                    }
+                    else if (c == quoteChar || IsMatchingQuote(quoteChar, c))
+                    {
+                        inQuotes = false;
+                    }
+                    result.Append(c);
+                    continue;
+                }
+
+                // Handle angle brackets
+                if (c == '<')
+                {
+                    inAngleBrackets = true;
+                    result.Append(c);
+                    continue;
+                }
+
+                if (c == '>' && inAngleBrackets)
+                {
+                    inAngleBrackets = false;
+                    result.Append(c);
+                    continue;
+                }
+
+                // Inside quotes/brackets, keep everything
+                if (inQuotes || inAngleBrackets)
+                {
+                    result.Append(c);
+                    continue;
+                }
+
+                // Outside quotes/brackets, check for termination
+                if (IsCommandTerminator(c))
+                {
+                    break;
+                }
+
+                result.Append(c);
+            }
+
+            return result.ToString().Trim();
+        }
+
+        // Check if two quotes match
+        private static bool IsMatchingQuote(char open, char close)
+        {
+            return (open == '“' && close == '”') ||
+                   (open == '‘' && close == '’') ||
+                   (open == '"' && (close == '"' || close == '＂')) ||
+                   (open == '\'' && (close == '\'' || close == '＇'));
+        }
+
+        // Check if character should terminate command extraction (for non-# case)
+        private static bool IsCommandTerminator(char c)
+        {
+            // Terminators: punctuation that ends a command
+            string terminators = "，。？！,.\t\r\n!?:;、；：";
+            return terminators.Contains(c);
+        }
+
+        // Format command: add / prefix if not already present
+        private static string FormatCommand(string rawText)
+        {
+            if (string.IsNullOrEmpty(rawText))
+            {
+                return string.Empty;
+            }
+
+            // If already starts with /, keep as is
+            if (rawText.StartsWith("/"))
+            {
+                return rawText;
+            }
+
+            // Otherwise add / prefix
+            return "/" + rawText;
+        }
+
+        // Helper method to find reaction index by reaction object
+        private static int FindReactionIndex(Reaction targetReaction)
+        {
+            if (Service.configuration == null || targetReaction == null)
+                return -1;
+
+            for (int i = 0; i < Service.configuration.Reactions.Count; i++)
+            {
+                var reaction = Service.configuration.Reactions[i];
+
+                // Compare by reference (most reliable)
+                if (ReferenceEquals(reaction, targetReaction))
+                    return i;
+
+                // Fallback: compare by name if reference doesn't match
+                if (reaction.Name == targetReaction.Name)
+                    return i;
+            }
+
+            return -1;
         }
 
         // Extract pure player name (remove server name)
@@ -689,106 +866,6 @@ namespace PuppetMaster
             return sender.Split('@')[0];
         }
 
-        // Check if Pokemon mode is active and not expired
-        private static bool IsPokemonModeActive()
-        {
-            if (string.IsNullOrEmpty(CurrentPokemonMaster) || Service.configuration == null)
-                return false;
-
-            // Check timeout
-            if (Service.configuration.PokemonModeEnabled &&
-                Service.configuration.PokemonTimeoutMinutes > 0)
-            {
-                var timeoutSpan = TimeSpan.FromMinutes(Service.configuration.PokemonTimeoutMinutes);
-                if (DateTime.Now - PokemonModeActivationTime > timeoutSpan)
-                {
-                    // Timeout reached, deactivate
-                    CurrentPokemonMaster = null;
-                    SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode timeout reached");
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        // Activate Pokemon mode for a player
-        private static void ActivatePokemonMode(string playerName)
-        {
-            CurrentPokemonMaster = playerName;
-            PokemonModeActivationTime = DateTime.Now;
-            SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode activated for: {playerName}");
-
-            // Notify in chat if debug is enabled
-            if (Service.configuration?.EnableVerboseDebug == true)
-            {
-                Service.ChatGui.Print($"[PuppetMaster] Pokemon mode activated for {ExtractPlayerName(playerName)}");
-            }
-        }
-
-        // Deactivate Pokemon mode
-        private static void DeactivatePokemonMode()
-        {
-            if (!string.IsNullOrEmpty(CurrentPokemonMaster))
-            {
-                SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode deactivated for: {CurrentPokemonMaster}");
-                CurrentPokemonMaster = null;
-            }
-        }
-
-        // Check if message contains Pokemon activation password
-        private static bool IsPokemonPassword(string message, string sender)
-        {
-            if (Service.configuration == null ||
-                !Service.configuration.PokemonModeEnabled ||
-                string.IsNullOrEmpty(Service.configuration.PokemonActivationPassword))
-                return false;
-
-            // Check if sender is self
-            var senderName = ExtractPlayerName(sender);
-            var localPlayerName = ExtractPlayerName(Service.ObjectTable?.LocalPlayer?.Name.ToString() ?? "");
-            if (senderName.Equals(localPlayerName, StringComparison.OrdinalIgnoreCase))
-                return false; // Cannot activate Pokemon mode for self
-
-            // Check if message matches password
-            var trimmedMessage = message.Trim();
-            return trimmedMessage.Equals(Service.configuration.PokemonActivationPassword, StringComparison.OrdinalIgnoreCase);
-        }
-
-        // Execute command in Pokemon mode
-        private static void ExecutePokemonCommand(string message)
-        {
-            if (string.IsNullOrEmpty(message))
-                return;
-
-            var lines = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
-                {
-                    string command = trimmed.StartsWith("/") ? trimmed : "/" + trimmed;
-                    SafeDebugPrint($"[PuppetMaster Debug] Pokemon mode executing: {command}");
-
-                    // Execute on framework thread
-                    Service.Framework.RunOnFrameworkThread(() =>
-                    {
-                        try
-                        {
-                            Chat.SendMessage(command);
-                        }
-                        catch (Exception ex)
-                        {
-                            Service.ChatGui.PrintError($"[PuppetMaster] Failed to execute Pokemon command: {ex.Message}");
-                        }
-                    });
-
-                    // Small delay between commands
-                    Thread.Sleep(300);
-                }
-            }
-        }
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
@@ -807,23 +884,6 @@ namespace PuppetMaster
                 SafeDebugPrint($"[PuppetMaster Debug] Total reactions: {Service.configuration.Reactions.Count}");
             }
 
-            // ========== Step 1: Check Pokemon mode ==========
-            if (Service.configuration.PokemonModeEnabled)
-            {
-                // Check for Pokemon activation password
-                if (IsPokemonPassword(messageText, senderText))
-                {
-                    ActivatePokemonMode(senderText);
-                    return;
-                }
-
-                // Check if Pokemon mode is active and this is the master
-                if (IsPokemonModeActive() && senderText == CurrentPokemonMaster)
-                {
-                    ExecutePokemonCommand(messageText);
-                    return; // Pokemon mode takes highest priority
-                }
-            }
 
             // ========== Step 2: Check Regex mode (highest priority) ==========
             bool anyRegexMatched = false;

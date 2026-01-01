@@ -9,6 +9,7 @@ using ECommons.Automation;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -102,25 +103,7 @@ namespace PuppetMaster
                 }
             }
             // ========== End of command prefix validation ==========
-            // Initialize Pokemon mode settings
-            if (string.IsNullOrEmpty(configuration.PokemonActivationPassword))
-            {
-                // Default to English password
-                configuration.PokemonActivationPassword = "pokemon activate";
-            }
-
-            if (configuration.PokemonTimeoutMinutes < 0)
-            {
-                configuration.PokemonTimeoutMinutes = 30;
-            }
-
-            // Clear invalid activation data
-            if (configuration.PokemonActivationTime.HasValue &&
-                configuration.PokemonActivationTime.Value < DateTime.Now.AddDays(-1))
-            {
-                configuration.PokemonActivePlayer = null;
-                configuration.PokemonActivationTime = null;
-            }
+ 
             foreach (var reaction in configuration.Reactions)
             {
                 // Ensure new list fields are not null
@@ -396,7 +379,8 @@ namespace PuppetMaster
             ParsedTextCommand result = new();
 
             if (!IsValidReactionIndex(index) ||
-                configuration!.Reactions[index].TestInput.IsNullOrWhitespace()) return result;
+                configuration!.Reactions[index].TestInput.IsNullOrWhitespace())
+                return result;
 
             var reaction = configuration.Reactions[index];
 
@@ -408,8 +392,27 @@ namespace PuppetMaster
 
             if (reaction.TriggerMode == TriggerMode.SpecificPlayer)
             {
-                // Specific player mode: test emote extraction
-                result.Main = ExtractEmoteFromMessage(reaction.TestInput, index);
+                // Specific player mode logic
+                if (reaction.AllowAllCommands)
+                {
+                    // NEW: AllowAllCommands for specific player
+                    var message = reaction.TestInput.Trim();
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        result.Main = message.StartsWith("/") ? message : "/" + message;
+                    }
+                }
+                else if (reaction.ScanFullMessageForEmote)
+                {
+                    // Scan full message for emote
+                    result.Main = ExtractEmoteFromMessage(reaction.TestInput, index);
+                }
+                else
+                {
+                    // Exact match
+                    var trimmed = reaction.TestInput.Trim();
+                    result.Main = FindExactEmoteMatchForTest(trimmed);
+                }
                 return result;
             }
             else if (reaction.TriggerMode == TriggerMode.Regex || reaction.UseRegex)
@@ -427,19 +430,62 @@ namespace PuppetMaster
                     catch (Exception) { }
                 }
             }
-            else
+            else if (reaction.TriggerMode == TriggerMode.Keyword)
             {
-                if (reaction.Rx == null) return result;
-                var matches = reaction.Rx.Matches(reaction.TestInput);
-                if (matches.Count != 0)
+                // KEYWORD MODE - FIXED LOGIC
+                if (reaction.AllowAllCommands)
                 {
-                    result.Args = matches[0].ToString();
-                    try
+                    // NEW: AllowAllCommands for keyword
+                    if (reaction.Rx == null) return result;
+                    var matches = reaction.Rx.Matches(reaction.TestInput);
+                    if (matches.Count == 0) return result;
+
+                    var match = matches[0];
+                    int startPos = match.Index + match.Length;
+
+                    // Check for # terminator
+                    int hashIndex = reaction.TestInput.IndexOf('#', startPos);
+                    string rawText;
+
+                    if (hashIndex >= startPos)
                     {
-                        result.Main = reaction.Rx.Replace(matches[0].Value, GetDefaultReplaceMatch());
-                        if (result.Main == "/") result.Main = string.Empty;
+                        // Has # terminator
+                        rawText = reaction.TestInput.Substring(startPos, hashIndex - startPos).Trim();
                     }
-                    catch (Exception) { }
+                    else
+                    {
+                        // No # terminator - extract intelligently
+                        startPos = SkipSeparatorsForTest(reaction.TestInput, startPos);
+                        if (startPos >= reaction.TestInput.Length) return result;
+                        rawText = ExtractFF14CommandForTest(reaction.TestInput, startPos);
+                    }
+
+                    if (!string.IsNullOrEmpty(rawText))
+                    {
+                        result.Main = rawText.StartsWith("/") ? rawText : "/" + rawText;
+                        result.Args = $"Extracted: {rawText}";
+                    }
+                }
+                else if (reaction.ScanFullMessageForEmote)
+                {
+                    // Scan full message for emote
+                    result.Main = ExtractEmoteFromMessage(reaction.TestInput, index);
+                }
+                else
+                {
+                    // Original keyword logic
+                    if (reaction.Rx == null) return result;
+                    var matches = reaction.Rx.Matches(reaction.TestInput);
+                    if (matches.Count != 0)
+                    {
+                        result.Args = matches[0].ToString();
+                        try
+                        {
+                            result.Main = reaction.Rx.Replace(matches[0].Value, GetDefaultReplaceMatch());
+                            if (result.Main == "/") result.Main = string.Empty;
+                        }
+                        catch (Exception) { }
+                    }
                 }
             }
 
@@ -453,14 +499,95 @@ namespace PuppetMaster
             return result;
         }
 
-    
-        // Test method for extracting emote
+        // Helper methods for test extraction
+        private static int SkipSeparatorsForTest(string text, int start)
+        {
+            string separators = " 　\t\r\n，。？！,.\"\"''!?:;、；：";
+            while (start < text.Length && separators.Contains(text[start]))
+            {
+                start++;
+            }
+            return start;
+        }
+
+        private static string ExtractFF14CommandForTest(string message, int startPos)
+        {
+            StringBuilder result = new StringBuilder();
+            bool inQuotes = false;
+            bool inAngleBrackets = false;
+
+            for (int i = startPos; i < message.Length; i++)
+            {
+                char c = message[i];
+
+                if (c == '#') break;
+
+                // Handle quotes
+                if (c == '"' || c == '\'')
+                {
+                    inQuotes = !inQuotes;
+                    result.Append(c);
+                    continue;
+                }
+
+                // Handle angle brackets
+                if (c == '<')
+                {
+                    inAngleBrackets = true;
+                    result.Append(c);
+                    continue;
+                }
+
+                if (c == '>' && inAngleBrackets)
+                {
+                    inAngleBrackets = false;
+                    result.Append(c);
+                    continue;
+                }
+
+                // Inside quotes/brackets
+                if (inQuotes || inAngleBrackets)
+                {
+                    result.Append(c);
+                    continue;
+                }
+
+                // Outside quotes/brackets
+                if ("，。？！,.\t\r\n!?:;、；：".Contains(c))
+                {
+                    break;
+                }
+
+                result.Append(c);
+            }
+
+            return result.ToString().Trim();
+        }
+
+        private static string FindExactEmoteMatchForTest(string message)
+        {
+            if (Emotes == null || Emotes.Count == 0) return string.Empty;
+
+            foreach (var emote in Emotes)
+            {
+                var emoteName = emote.TrimStart('/');
+                if (string.Equals(emoteName, message, StringComparison.OrdinalIgnoreCase))
+                {
+                    return emote;
+                }
+            }
+
+            return string.Empty;
+        }
+
+
+        // Test helper method for extracting emote
         private static string ExtractEmoteFromMessage(string message, int index)
         {
-            if (Service.Emotes == null || Service.Emotes.Count == 0) return string.Empty;
+            if (Emotes == null || Emotes.Count == 0) return string.Empty;
 
             var messageLower = message.ToLowerInvariant();
-            var emotesByLength = new List<string>(Service.Emotes);
+            var emotesByLength = new List<string>(Emotes);
             emotesByLength.Sort((a, b) => b.Length.CompareTo(a.Length));
 
             foreach (var emote in emotesByLength)
@@ -470,7 +597,7 @@ namespace PuppetMaster
                     var emoteName = emote.TrimStart('/').ToLowerInvariant();
                     if (emoteName.Length < 2) continue;
 
-                    var pattern = $@"\b{Regex.Escape(emoteName)}\b";
+                    var pattern = $@"(?:^|[\s\p{{P}}\W_]|(?<=[\p{{L}}\p{{N}}])){Regex.Escape(emoteName)}(?:$|[\s\p{{P}}\W_]|(?=[\p{{L}}\p{{N}}]))";
                     if (Regex.IsMatch(messageLower, pattern, RegexOptions.IgnoreCase))
                     {
                         return emote;

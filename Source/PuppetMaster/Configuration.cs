@@ -246,27 +246,8 @@ namespace PuppetMaster
         // Command settings (new in version 5)
         public string CommandPrefix { get; set; } = "/puppetmaster";
         public bool EnableShortCommand { get; set; } = true;
-        public bool PokemonModeEnabled { get; set; } = false;
 
-        /// <summary>
-        /// Activation password for Pokemon mode
-        /// </summary>
-        public string PokemonActivationPassword { get; set; } = "芝麻开门";
 
-        /// <summary>
-        /// Timeout in minutes for Pokemon mode (0 = no timeout)
-        /// </summary>
-        public int PokemonTimeoutMinutes { get; set; } = 30;
-
-        /// <summary>
-        /// Currently active Pokemon master player name
-        /// </summary>
-        public string? PokemonActivePlayer { get; set; }
-
-        /// <summary>
-        /// When Pokemon mode was activated
-        /// </summary>
-        public DateTime? PokemonActivationTime { get; set; }
         //---- Version 0 Config [DEPRECATED]
         public string TriggerPhrase { get; set; } = "please do";
         public bool AllowSit { get; set; } = false;
