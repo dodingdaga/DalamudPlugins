@@ -1,13 +1,12 @@
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Utility;
-
+using ECommons.Automation;
 using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-
-using ECommons.Automation;
 
 namespace PuppetMaster
 {
@@ -17,7 +16,7 @@ namespace PuppetMaster
         {
         }
 
-        public static async void RunMacroAsync(string[] lines, int index)
+        public static async Task RunMacroAsync(string[] lines, int index)
         {
             Service.semaphore.WaitOne();
             var reaction = Service.configuration!.Reactions[index];
@@ -60,7 +59,7 @@ namespace PuppetMaster
             }
         }
 
-        public static void DoCommand(int index, XivChatType type, String message)
+        public static async Task DoCommandAsync(int index, XivChatType type, String message)
         {
             // Check if part of enabled channels
             if (!Service.configuration!.Reactions[index].EnabledChannels.Contains((int)type)) return;
@@ -90,7 +89,7 @@ namespace PuppetMaster
 
 
             var lines = MyRegex().Split(command.ToString());
-            RunMacroAsync(lines, index);
+            await RunMacroAsync(lines, index);
         }
 
         public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
@@ -104,11 +103,18 @@ namespace PuppetMaster
 
             if (isHandled) return;
 
-            for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+            string messageStr = message.ToString();
+
+            _ = Task.Run(async () =>
             {
-                if (Service.configuration.Reactions[index].Enabled)
-                    DoCommand(index, type, message.ToString());
-            }
+                var tasks = new List<Task>();
+                for (var index = 0; index < Service.configuration.Reactions.Count; index++)
+                {
+                    if (Service.configuration.Reactions[index].Enabled)
+                        tasks.Add(DoCommandAsync(index, type, messageStr));
+                }
+                await Task.WhenAll(tasks);
+            });
         }
 
         [GeneratedRegex("\r\n|\r|\n")]
