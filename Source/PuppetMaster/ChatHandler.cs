@@ -45,7 +45,28 @@ namespace PuppetMaster
                             if (textCommand.Main == "/wait" && float.TryParse(textCommand.Args, out var seconds))
                                 await Task.Delay((int)(Math.Clamp(seconds, 0.0, 60.0) * 1000.0));
                             else
-                                Chat.SendMessage($"{textCommand}");
+                            {
+                                // Lifted from AmberPlume's pull request. (to review)
+                                try
+                                {
+                                    // Critical fix: execute Chat.SendMessage on main thread
+                                    await Service.Framework.RunOnFrameworkThread(() =>
+                                    {
+                                        try
+                                        {
+                                            Chat.SendMessage($"{textCommand}");
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Service.ChatGui.PrintError($"[PuppetMaster] Failed to send command {textCommand}: {ex.Message}");
+                                        }
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    Service.ChatGui.PrintError($"[PuppetMaster] Framework thread execution failed: {ex.Message}");
+                                }
+                            }
                         }
                     }
 #if DEBUG
