@@ -45,9 +45,9 @@ namespace Copycat
             // this.chatGui.Print($" ukn:{unk} unk2:{unk2}");
             if (Service.objectTable.LocalPlayer != null && targetId == Service.objectTable.LocalPlayer.GameObjectId)
             {
-                if (Service.objectTable.FirstOrDefault(x => (ulong)x.GameObjectId == targetId) is IPlayerCharacter targetOb && targetOb.ObjectKind == ObjectKind.Player)
+                if (Service.objectTable.FirstOrDefault(x => (ulong)x.GameObjectId == targetId) is IPlayerCharacter targetOb && targetOb.ObjectKind == ObjectKind.Pc)
                 {
-                    if (Service.objectTable.FirstOrDefault(x => (ulong)x.Address == instigatorAddr) is IPlayerCharacter instigatorOb && instigatorOb.ObjectKind == ObjectKind.Player && instigatorOb.GameObjectId != targetId)
+                    if (Service.objectTable.FirstOrDefault(x => (ulong)x.Address == instigatorAddr) is IPlayerCharacter instigatorOb && instigatorOb.ObjectKind == ObjectKind.Pc && instigatorOb.GameObjectId != targetId)
                     {
                         OnEmote?.Invoke(instigatorOb, emoteId, targetOb, unk, unk2);
                     }

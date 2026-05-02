@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud.Game.Chat;
 
 namespace PuppetMaster
 {
@@ -112,8 +113,11 @@ namespace PuppetMaster
             var lines = MyRegex().Split(command.ToString());
             await RunMacroAsync(lines, index);
         }
-
-        public static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+        public static void OnChatMessage(IHandleableChatMessage message)
+        {
+            OnChatMessage(message.LogKind, message.Timestamp, message.Sender, message.Message, message.IsHandled);
+        }
+        public static void OnChatMessage(XivChatType type, int timestamp, SeString sender, SeString message, bool isHandled)
         {
             if (Service.configuration!.DebugLogTypes && type != XivChatType.Debug)
             {
