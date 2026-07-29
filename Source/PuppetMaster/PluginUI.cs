@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace PuppetMaster
 {
@@ -15,6 +16,7 @@ namespace PuppetMaster
         private static Service.ParsedTextCommand TextCommand = new();
         private static int CurrentReactionIndex;
         private static int PendingReactionDelete = -1;
+        private static bool OpenReactionDeletePopup;
         private static bool SelectReactionEditor;
         private static int ReactionEditorSection;
         private static string ReactionEditorSearch = string.Empty;
@@ -113,7 +115,7 @@ namespace PuppetMaster
             if (ImGui.SmallButton($"Delete##ReactionDelete{index}"))
             {
                 PendingReactionDelete = index;
-                ImGui.OpenPopup("Delete reaction?");
+                OpenReactionDeletePopup = true;
             }
             if (configuration.Reactions.Count <= 1)
                 ImGui.EndDisabled();
@@ -200,6 +202,33 @@ namespace PuppetMaster
             WhitelistCommandInput = string.Empty;
             BlacklistCommandInput = string.Empty;
             configuration.Save();
+        }
+
+        private static void CreateReactionFromLog(DebugLogEntry entry)
+        {
+            var configuration = Service.configuration!;
+            var officialChannelName = entry.ChatTypeId is >= ushort.MinValue and <= ushort.MaxValue
+                ? Enum.GetName(typeof(XivChatType), (ushort)entry.ChatTypeId)
+                : null;
+            var channelName = officialChannelName ?? $"channel {entry.ChatTypeId}";
+            var reaction = Reaction.CreateDefault($"Reaction from {channelName}");
+            reaction.UseRegex = true;
+            reaction.CustomPhrase = $"^{Regex.Escape(entry.TriggerText)}$";
+            reaction.TestInput = entry.TriggerText;
+            reaction.EnabledChannels.Add(entry.ChatTypeId);
+
+            Service.semaphore.WaitOne();
+            try
+            {
+                configuration.Reactions.Add(reaction);
+            }
+            finally
+            {
+                Service.semaphore.Release();
+            }
+
+            SelectReaction(configuration.Reactions.Count - 1);
+            SelectReactionEditor = true;
         }
 
         private static string NormalizeCommand(string input)
@@ -494,6 +523,12 @@ namespace PuppetMaster
 
         private static void DrawDeleteReactionConfirmation()
         {
+            if (OpenReactionDeletePopup)
+            {
+                ImGui.OpenPopup("Delete reaction?");
+                OpenReactionDeletePopup = false;
+            }
+
             if (!ImGui.BeginPopupModal("Delete reaction?", ImGuiWindowFlags.AlwaysAutoResize))
                 return;
 
@@ -1133,6 +1168,9 @@ namespace PuppetMaster
                     for (var index = 0; index < entries.Length; index++)
                     {
                         var entry = entries[index];
+                        if (ImGui.SmallButton($"Create reaction##LogReaction{entry.ChatTypeId}_{index}"))
+                            CreateReactionFromLog(entry);
+                        ImGui.SameLine();
                         if (!IsOfficialChatType(entry.ChatTypeId) && !IsConfiguredCustomChannel(entry.ChatTypeId))
                         {
                             if (ImGui.SmallButton($"Add custom channel##LogCustomChannel{entry.ChatTypeId}_{index}"))
