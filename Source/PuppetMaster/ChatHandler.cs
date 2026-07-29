@@ -119,7 +119,7 @@ namespace PuppetMaster
         }
         public static void OnChatMessage(XivChatType type, int timestamp, SeString sender, SeString message, bool isHandled)
         {
-            if (Service.configuration!.DebugLogTypes && type != XivChatType.Debug)
+            if (Service.configuration!.DebugLogTypes)
             {
                 var prefix = int.TryParse(type.ToString(), out var number)?"[" + number + "]":"[" + ((int)type) + "][" + type + "]";
                 prefix += (sender.ToString().IsNullOrEmpty() ? "" : "<" + sender + "> ");
