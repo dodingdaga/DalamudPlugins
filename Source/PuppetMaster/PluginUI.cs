@@ -407,41 +407,58 @@ namespace PuppetMaster
         
             if (ImGui.BeginTabItem("Custom Channels"))
             {
+                var configuration = Service.configuration!;
                 ImGui.SetNextItemWidth(400);
-               
-                var debugLogTypes = Service.configuration!.DebugLogTypes;
-                if (ImGui.Checkbox("Debug log types", ref debugLogTypes))
-                {  
-                    Service.configuration.DebugLogTypes = debugLogTypes;
-                }
-                
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.Text("Enabling this print all game messages in the log windows.");
-                    ImGui.Text("Logs will be prefixed with log type ID (and optionally the type name and sender, if they exist)");
-                    ImGui.EndTooltip();
-                }
-                
-                ImGui.SameLine();
-                
+
                 if (ImGui.Button("Add##CustomChannelAdd"))
                 {
-                    Service.configuration.CustomChannels.Add( new ChannelSetting(){ChatType = (int)0, Name = "Custom", Enabled = false});
-                    Service.configuration.Save();
+                    configuration.CustomChannels.Add( new ChannelSetting(){ChatType = (int)0, Name = "Custom", Enabled = false});
+                    configuration.Save();
                 }
                 
                 ImGui.Spacing();
                 ImGui.Spacing();
                 
-                if (Service.configuration.CustomChannels.Count > 0)
+                if (configuration.CustomChannels.Count > 0)
                 {
-                    for (var index = 0; index <  Service.configuration.CustomChannels.Count; ++index)
+                    for (var index = 0; index < configuration.CustomChannels.Count; ++index)
                     {
                         DrawCustomChannels(index);
                     }
                 }
                 
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Logs"))
+            {
+                var configuration = Service.configuration!;
+                var debugLogTypes = configuration.DebugLogTypes;
+                if (ImGui.Checkbox("Enable message logging", ref debugLogTypes))
+                {
+                    configuration.DebugLogTypes = debugLogTypes;
+                }
+
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted("Capture game messages in this window with their log type ID, type name, and sender.");
+                    ImGui.EndTooltip();
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Clear"))
+                    DebugLogBuffer.Clear();
+
+                ImGui.Separator();
+
+                if (ImGui.BeginChild("##PuppetMasterMessageLog", new Vector2(0, 0), true))
+                {
+                    foreach (var entry in DebugLogBuffer.Snapshot())
+                        ImGui.TextUnformatted(entry);
+                }
+                ImGui.EndChild();
+
                 ImGui.EndTabItem();
             }
             

@@ -123,7 +123,7 @@ namespace PuppetMaster
             {
                 var prefix = int.TryParse(type.ToString(), out var number)?"[" + number + "]":"[" + ((int)type) + "][" + type + "]";
                 prefix += (sender.ToString().IsNullOrEmpty() ? "" : "<" + sender + "> ");
-                Service.ChatGui.Print(prefix+" "+message);
+                DebugLogBuffer.Add($"[{DateTime.Now:HH:mm:ss}] {prefix} {message}");
             }
 
             if (isHandled) return;
