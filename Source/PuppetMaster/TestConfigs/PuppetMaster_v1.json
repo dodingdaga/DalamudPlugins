@@ -1,0 +1,17 @@
+{
+  "Version": 1,
+  "Reactions": [
+    {
+      "Enabled": true,
+      "Name": "Legacy v1",
+      "TriggerPhrase": "please do",
+      "AllowSit": true,
+      "MotionOnly": false,
+      "AllowAllCommands": true,
+      "UseRegex": false,
+      "EnabledChannels": [10, 14],
+      "CommandWhitelist": ["/echo"],
+      "CommandBlacklist": []
+    }
+  ]
+}

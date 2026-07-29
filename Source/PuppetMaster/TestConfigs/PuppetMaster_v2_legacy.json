@@ -1,0 +1,18 @@
+{
+  "Version": 2,
+  "ShowReactionNotifications": false,
+  "Reactions": [
+    {
+      "Enabled": true,
+      "Name": "Legacy sit and duplicates",
+      "TriggerPhrase": "test",
+      "AllowSit": false,
+      "MotionOnly": true,
+      "AllowAllCommands": true,
+      "UseRegex": false,
+      "EnabledChannels": [10],
+      "CommandWhitelist": ["/echo", "/ECHO"],
+      "CommandBlacklist": ["/sit", "/SIT"]
+    }
+  ]
+}

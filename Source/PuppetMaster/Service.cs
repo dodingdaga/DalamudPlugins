@@ -8,6 +8,7 @@ using Lumina.Excel.Sheets;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -142,6 +143,36 @@ namespace PuppetMaster
             return textCommand;
         }
 
+        public static bool IsCommandAllowed(Reaction reaction, string command, out string reason)
+        {
+            if (reaction.CommandBlacklist.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase)))
+            {
+                reason = "command is blacklisted";
+                return false;
+            }
+
+            if (Emotes.Contains(command))
+            {
+                reason = "emote allowed by default";
+                return true;
+            }
+
+            if (reaction.AllowAllCommands)
+            {
+                reason = "Allow all text commands is enabled";
+                return true;
+            }
+
+            if (reaction.CommandWhitelist.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase)))
+            {
+                reason = "command is whitelisted";
+                return true;
+            }
+
+            reason = "command is not whitelisted";
+            return false;
+        }
+
         public static ParsedTextCommand GetTestInputCommand(int index)
         {
             ParsedTextCommand result = new();
@@ -182,46 +213,16 @@ namespace PuppetMaster
             return result;
         }
 
-        private static void migrateConfiguration(ref Configuration configuration)
-        {
-            // Version 0 to 1 migration
-            if (configuration.Version == 0)
-            {
-                var enabledChannels = new List<int>();
-                foreach (var channel in configuration.EnabledChannels)
-                {
-                    if (channel.Enabled)
-                        enabledChannels.Add(channel.ChatType);
-                }
-                configuration.Reactions =
-                    [
-                        new() {
-                            Enabled = true,
-                            Name = "Reaction",
-                            TriggerPhrase = configuration.TriggerPhrase,
-                            AllowSit = configuration.AllowSit,
-                            MotionOnly = configuration.MotionOnly,
-                            AllowAllCommands = configuration.AllowAllCommands,
-                            UseRegex = configuration.UseRegex,
-                            CustomPhrase = configuration.CustomPhrase,
-                            ReplaceMatch = configuration.ReplaceMatch,
-                            TestInput = configuration.TestInput,
-                            EnabledChannels = enabledChannels,
-                        }
-                    ];
-                configuration.Version = 1;
-            }
-        }
-
         public static void InitializeConfig()
         {
             configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             configuration.Initialize(PluginInterface);
 
-            if (configuration.Version < ConfigVersion.CURRENT)
-            {
-                migrateConfiguration(ref configuration);
-            }
+            var requiresMigration = configuration.Version < ConfigVersion.CURRENT;
+            if (requiresMigration)
+                BackupConfiguration(configuration.Version);
+
+            ConfigurationMigrator.MigrateAndNormalize(configuration);
 
             if (configuration.EnabledChannels.Count != CHANNEL_COUNT)
             {
@@ -253,12 +254,12 @@ namespace PuppetMaster
                 ];
             }
 
-            InitializeRegex();
-
             if (configuration.Reactions.Count == 0)
             {
-                configuration.Reactions.Add(new Reaction() { Name ="Reaction" });
+                configuration.Reactions.Add(Reaction.CreateDefault());
             }
+
+            InitializeRegex();
 
             if (configuration.CustomChannels.Count == 0)
             {
@@ -269,6 +270,17 @@ namespace PuppetMaster
             configuration.DebugLogTypes = false;
 
             configuration.Save();
+        }
+
+        private static void BackupConfiguration(int sourceVersion)
+        {
+            var configFile = PluginInterface.ConfigFile;
+            if (!configFile.Exists)
+                return;
+
+            var backupName = $"{Path.GetFileNameWithoutExtension(configFile.Name)}.v{sourceVersion}.{DateTime.UtcNow:yyyyMMddHHmmss}.backup.json";
+            var backupPath = Path.Combine(configFile.DirectoryName!, backupName);
+            File.Copy(configFile.FullName, backupPath, overwrite: false);
         }
 
         [PluginService]
@@ -297,5 +309,8 @@ namespace PuppetMaster
 
         [PluginService]
         public static IFramework Framework { get; private set; } = null!;
+
+        [PluginService]
+        public static INotificationManager NotificationManager { get; private set; } = null!;
     }
 }

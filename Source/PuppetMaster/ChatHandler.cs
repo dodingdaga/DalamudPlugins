@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Chat;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ImGuiNotification;
 
 namespace PuppetMaster
 {
@@ -23,62 +25,150 @@ namespace PuppetMaster
             var reaction = Service.configuration!.Reactions[index];
             Service.semaphore.Release();
 
-            foreach (var line in lines)
+            var cancellation = new CancellationTokenSource();
+            IActiveNotification? notification = null;
+
+            if (Service.configuration.ShowReactionNotifications)
             {
-                var textCommand = Service.FormatCommand(line);
-                if (!string.IsNullOrEmpty(textCommand.Main))
+                await Service.Framework.RunOnFrameworkThread(() =>
                 {
+                    notification = Service.NotificationManager.AddNotification(new Notification
+                    {
+                        Title = "Puppet Master",
+                        Content = $"Starting reaction: {reaction.Name}",
+                        Type = NotificationType.Info,
+                        Progress = 0,
+                        InitialDuration = TimeSpan.MaxValue,
+                        UserDismissable = false,
+                    });
+
+                    notification.DrawActions += _ =>
+                    {
+                        if (ImGui.Button($"Cancel##PuppetMasterReaction{notification.Id}"))
+                            cancellation.Cancel();
+                    };
+                });
+            }
+
+            try
+            {
+                for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+                {
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    var textCommand = Service.FormatCommand(lines[lineIndex]);
+                    if (string.IsNullOrEmpty(textCommand.Main))
+                        continue;
+
+                    if (notification != null)
+                    {
+                        await UpdateReactionNotificationAsync(
+                            notification,
+                            $"{reaction.Name}\nStep {lineIndex + 1} of {lines.Length}: {textCommand}",
+                            (float)lineIndex / lines.Length);
+                    }
+
                     // Process emote
                     var isEmote = Service.Emotes.Contains(textCommand.Main);
                     if (isEmote)
                     {
-                        if ((textCommand.Main == "/sit" || textCommand.Main == "/groundsit" || textCommand.Main == "/lounge") && !reaction.AllowSit)
-                            textCommand.Main = "/no";
                         if (reaction.MotionOnly)
                             textCommand.Args = "motion";
                     }
 
-                    if (!reaction.CommandBlacklist.Contains(textCommand.Main))
+                    if (Service.IsCommandAllowed(reaction, textCommand.Main, out var permissionReason))
                     {
-                        // Execute command
-                        if (reaction.AllowAllCommands || isEmote || reaction.CommandWhitelist.Contains(textCommand.Main))
+                        if (textCommand.Main == "/wait" && float.TryParse(textCommand.Args, out var seconds))
+                            await Task.Delay((int)(Math.Clamp(seconds, 0.0, 60.0) * 1000.0), cancellation.Token);
+                        else
                         {
-                            if (textCommand.Main == "/wait" && float.TryParse(textCommand.Args, out var seconds))
-                                await Task.Delay((int)(Math.Clamp(seconds, 0.0, 60.0) * 1000.0));
-                            else
+                            // Lifted from AmberPlume's pull request. (to review)
+                            try
                             {
-                                // Lifted from AmberPlume's pull request. (to review)
-                                try
+                                // Critical fix: execute Chat.SendMessage on main thread
+                                await Service.Framework.RunOnFrameworkThread(() =>
                                 {
-                                    // Critical fix: execute Chat.SendMessage on main thread
-                                    await Service.Framework.RunOnFrameworkThread(() =>
+                                    if (cancellation.IsCancellationRequested)
+                                        return;
+                                    try
                                     {
-                                        try
-                                        {
-                                            Chat.SendMessage($"{textCommand}");
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Service.ChatGui.PrintError($"[PuppetMaster] Failed to send command {textCommand}: {ex.Message}");
-                                        }
-                                    });
-                                }
-                                catch (Exception ex)
-                                {
-                                    Service.ChatGui.PrintError($"[PuppetMaster] Framework thread execution failed: {ex.Message}");
-                                }
+                                        Chat.SendMessage($"{textCommand}");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Service.ChatGui.PrintError($"[PuppetMaster] Failed to send command {textCommand}: {ex.Message}");
+                                    }
+                                });
+                                cancellation.Token.ThrowIfCancellationRequested();
+                            }
+                            catch (Exception ex)
+                            {
+                                Service.ChatGui.PrintError($"[PuppetMaster] Framework thread execution failed: {ex.Message}");
                             }
                         }
                     }
 #if DEBUG
                     else
                     {
-                        Service.ChatGui.Print($"{textCommand.Main} in CommandBlacklist");
-                        return;
+                        Service.ChatGui.Print($"{textCommand.Main} blocked: {permissionReason}");
                     }
 #endif
+                    if (notification != null)
+                    {
+                        await UpdateReactionNotificationAsync(
+                            notification,
+                            $"{reaction.Name}\nCompleted step {lineIndex + 1} of {lines.Length}",
+                            (float)(lineIndex + 1) / lines.Length);
+                    }
                 }
+
+                if (notification != null)
+                    await FinishReactionNotificationAsync(notification, reaction.Name, false);
             }
+            catch (OperationCanceledException)
+            {
+                if (notification != null)
+                    await FinishReactionNotificationAsync(notification, reaction.Name, true);
+            }
+            catch (Exception ex)
+            {
+                if (notification != null)
+                    await FinishReactionNotificationAsync(notification, reaction.Name, false, ex.Message);
+                else
+                    Service.ChatGui.PrintError($"[PuppetMaster] Reaction {reaction.Name} failed: {ex.Message}");
+            }
+        }
+
+        private static Task UpdateReactionNotificationAsync(IActiveNotification notification, string content, float progress)
+        {
+            return Service.Framework.RunOnFrameworkThread(() =>
+            {
+                if (notification.DismissReason == null)
+                {
+                    notification.Content = content;
+                    notification.Progress = Math.Clamp(progress, 0, 1);
+                }
+            });
+        }
+
+        private static Task FinishReactionNotificationAsync(IActiveNotification notification, string reactionName, bool cancelled, string? error = null)
+        {
+            return Service.Framework.RunOnFrameworkThread(() =>
+            {
+                notification.DismissNow();
+                Service.NotificationManager.AddNotification(new Notification
+                {
+                    Title = "Puppet Master",
+                    Content = error != null
+                        ? $"Reaction failed: {reactionName}\n{error}"
+                        : cancelled
+                            ? $"Cancelled reaction: {reactionName}"
+                            : $"Completed reaction: {reactionName}",
+                    Type = error != null
+                        ? NotificationType.Error
+                        : cancelled ? NotificationType.Warning : NotificationType.Success,
+                    InitialDuration = TimeSpan.FromSeconds(4),
+                });
+            });
         }
 
         public static async Task DoCommandAsync(int index, XivChatType type, String message)

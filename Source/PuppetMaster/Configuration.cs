@@ -9,7 +9,7 @@ namespace PuppetMaster
 {
     public class ConfigVersion
     {
-        public const int CURRENT = 1;
+        public const int CURRENT = 2;
     }
 
     public class ChannelSetting
@@ -25,8 +25,10 @@ namespace PuppetMaster
         public bool Enabled { get; set; } = false;
         public string Name { get; set; } = string.Empty;
         public string TriggerPhrase { get; set; } = string.Empty;
-        public bool AllowSit { get; set; } = false;
+        // Legacy field. False is normalized into default blacklist entries on load.
+        public bool AllowSit { get; set; } = true;
         public bool MotionOnly { get; set; } = true;
+        // Legacy v1 field. Retained for config compatibility; command execution no longer uses it.
         public bool AllowAllCommands { get; set; } = false;
         public bool UseRegex { get; set; } = false;
         public string CustomPhrase { get; set; } = string.Empty;
@@ -37,6 +39,15 @@ namespace PuppetMaster
         public List<string> CommandBlacklist { get; set; } = [];
         public Regex? Rx;
         public Regex? CustomRx;
+
+        public static Reaction CreateDefault(string name = "Reaction")
+        {
+            return new Reaction
+            {
+                Name = name,
+                CommandBlacklist = ["/sit", "/groundsit", "/lounge"],
+            };
+        }
     }
 
     [Serializable]
@@ -60,6 +71,7 @@ namespace PuppetMaster
         public List<Reaction> Reactions { get; set; } = [];
         public int CurrentReactionEdit = -1;
         public bool DebugLogTypes { get; set; } = false;
+        public bool ShowReactionNotifications { get; set; } = true;
         public int MaxRegexLength { get; set; } = 1000;
 
         [NonSerialized]

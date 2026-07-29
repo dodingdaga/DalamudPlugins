@@ -16,6 +16,11 @@ namespace PuppetMaster
         private static int PendingReactionDelete = -1;
         private static bool SelectReactionEditor;
         private static string ChannelSearch = string.Empty;
+        private static string ReactionSearch = string.Empty;
+        private static int PendingReactionDuplicate = -1;
+        private static int PendingAllowAllReaction = -1;
+        private static string WhitelistCommandInput = string.Empty;
+        private static string BlacklistCommandInput = string.Empty;
 
         private static readonly int[] CommonChannelIndexes = [16, 17, 18, 19, 20, 21, 22];
         private static readonly int[] CrossWorldLinkshellIndexes = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -28,7 +33,7 @@ namespace PuppetMaster
             CurrentReactionIndex = Service.configuration!.CurrentReactionEdit;
             SizeConstraints = new()
             {
-                MinimumSize = new Vector2(520, 500),
+                MinimumSize = new Vector2(760, 500),
                 MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
             };
         }
@@ -47,6 +52,9 @@ namespace PuppetMaster
         {
             var configuration = Service.configuration!;
             var reaction = configuration.Reactions[index];
+
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
             var enabled = reaction.Enabled;
             if (ImGui.Checkbox($"##{reaction.Name}##ReactionCheckBox{index}", ref enabled))
             {
@@ -56,11 +64,8 @@ namespace PuppetMaster
                 Service.semaphore.Release();
             }
 
-            ImGui.SameLine();
-            ImGui.Spacing();
-            ImGui.SameLine();
-
-            ImGui.PushItemWidth(150);
+            ImGui.TableNextColumn();
+            ImGui.SetNextItemWidth(-1);
             var reactionName = reaction.Name;
             if (ImGui.InputText($"##CustomChannelLabel##{index}", ref reactionName, 100))
             {
@@ -69,52 +74,68 @@ namespace PuppetMaster
                 configuration.Save();
                 Service.semaphore.Release();
             }
-            ImGui.PopItemWidth();
+            ImGui.TableNextColumn();
+            var triggerPreview = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
+            if (string.IsNullOrWhiteSpace(triggerPreview))
+                ImGui.TextDisabled(reaction.UseRegex ? "Custom regex not set" : "Trigger not set");
+            else
+                ImGui.TextUnformatted(triggerPreview);
+            if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(triggerPreview))
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted(triggerPreview);
+                ImGui.EndTooltip();
+            }
 
-            ImGui.SameLine();
-            if (ImGui.Button($"Edit##ReactionEdit{index}"))
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(reaction.EnabledChannels.Count.ToString());
+
+            ImGui.TableNextColumn();
+            DrawReactionStatus(reaction);
+
+            ImGui.TableNextColumn();
+            if (ImGui.SmallButton($"Edit##ReactionEdit{index}"))
             {
                 SelectReaction(index);
                 SelectReactionEditor = true;
             }
-
             ImGui.SameLine();
-            if (ImGui.Button($"Duplicate##ReactionDuplicate{index}"))
-                DuplicateReaction(index);
-
+            if (ImGui.SmallButton($"Copy##ReactionDuplicate{index}"))
+                PendingReactionDuplicate = index;
             ImGui.SameLine();
             if (configuration.Reactions.Count <= 1)
                 ImGui.BeginDisabled();
-            if (ImGui.Button($"Delete##ReactionDelete{index}"))
+            if (ImGui.SmallButton($"Delete##ReactionDelete{index}"))
             {
                 PendingReactionDelete = index;
                 ImGui.OpenPopup("Delete reaction?");
             }
             if (configuration.Reactions.Count <= 1)
                 ImGui.EndDisabled();
-
-            ImGui.SameLine();
-            DrawReactionStatus(reaction);
         }
 
         private static void DrawReactionStatus(Reaction reaction)
         {
+            var status = GetReactionStatus(reaction);
+            ImGui.TextColored(status.Color, status.Label);
+        }
+
+        private static (string Label, Vector4 Color, bool NeedsAttention) GetReactionStatus(Reaction reaction)
+        {
             if (!reaction.Enabled)
-            {
-                ImGui.TextColored(new Vector4(0.65f, 0.65f, 0.65f, 1), "Disabled");
-                return;
-            }
+                return ("Disabled", new Vector4(0.65f, 0.65f, 0.65f, 1), false);
 
             var hasTrigger = reaction.UseRegex
                 ? !string.IsNullOrWhiteSpace(reaction.CustomPhrase) && reaction.CustomRx != null
                 : !string.IsNullOrWhiteSpace(reaction.TriggerPhrase) && reaction.Rx != null;
 
             if (!hasTrigger)
-                ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1), "Invalid trigger");
-            else if (reaction.EnabledChannels.Count == 0)
-                ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1), "No channels");
-            else
-                ImGui.TextColored(new Vector4(0.35f, 0.9f, 0.45f, 1), "Ready");
+                return ("Invalid trigger", new Vector4(1f, 0.35f, 0.35f, 1), true);
+            if (reaction.EnabledChannels.Count == 0)
+                return ("No channels", new Vector4(1f, 0.75f, 0.2f, 1), true);
+            if (reaction.AllowAllCommands)
+                return ("Unsafe", new Vector4(1f, 0.55f, 0.2f, 1), true);
+            return ("Ready", new Vector4(0.35f, 0.9f, 0.45f, 1), false);
         }
 
         private static void SelectReaction(int index)
@@ -124,7 +145,264 @@ namespace PuppetMaster
             configuration.CurrentReactionEdit = index;
             Service.InitializeRegex(index);
             TextCommand = Service.GetTestInputCommand(index);
+            WhitelistCommandInput = string.Empty;
+            BlacklistCommandInput = string.Empty;
             configuration.Save();
+        }
+
+        private static string NormalizeCommand(string input)
+        {
+            input = input.Trim();
+            if (input.Length == 0)
+                return string.Empty;
+            if (!input.StartsWith('/'))
+                input = $"/{input}";
+            return Service.FormatCommand(input).Main;
+        }
+
+        private static bool ContainsCommand(List<string> commands, string command)
+        {
+            return commands.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void DrawCommandListEditor(
+            string label,
+            string description,
+            List<string> commands,
+            List<string> oppositeCommands,
+            ref string input,
+            string id)
+        {
+            var configuration = Service.configuration!;
+            ImGui.TextUnformatted(label);
+            ImGui.TextDisabled(description);
+
+            var snapshot = commands.ToArray();
+            foreach (var command in snapshot)
+            {
+                ImGui.TextUnformatted(command);
+                ImGui.SameLine();
+                if (ImGui.SmallButton($"Remove##{id}{command}"))
+                {
+                    commands.Remove(command);
+                    configuration.Save();
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                }
+            }
+
+            ImGui.SetNextItemWidth(-55);
+            var addFromEnter = ImGui.InputTextWithHint(
+                $"##{id}Input",
+                "/command",
+                ref input,
+                100,
+                ImGuiInputTextFlags.EnterReturnsTrue);
+            ImGui.SameLine();
+            var addFromButton = ImGui.SmallButton($"Add##{id}Add");
+            if (addFromEnter || addFromButton)
+            {
+                var command = NormalizeCommand(input);
+                if (command.Length > 0)
+                {
+                    oppositeCommands.RemoveAll(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
+                    if (!ContainsCommand(commands, command))
+                        commands.Add(command);
+                    input = string.Empty;
+                    configuration.Save();
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                }
+            }
+        }
+
+        private static void DrawCommandRulesEditor(Reaction reaction)
+        {
+            ImGui.TextDisabled("Blacklist always wins. Emotes are allowed unless blacklisted.");
+
+            DrawCommandListEditor(
+                "Allowed commands",
+                reaction.AllowAllCommands
+                    ? "Ignored while Allow all text commands is enabled."
+                    : "Non-emote commands must appear here.",
+                reaction.CommandWhitelist,
+                reaction.CommandBlacklist,
+                ref WhitelistCommandInput,
+                "Whitelist");
+
+            ImGui.Spacing();
+            DrawCommandListEditor(
+                "Denied commands",
+                "These commands are always blocked, including emotes.",
+                reaction.CommandBlacklist,
+                reaction.CommandWhitelist,
+                ref BlacklistCommandInput,
+                "Blacklist");
+        }
+
+        private static void DrawTriggerEditor(Reaction reaction)
+        {
+            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
+            if (!ImGui.CollapsingHeader("Trigger & Testing##ReactionEditorTrigger"))
+                return;
+
+            var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
+            ImGui.TextUnformatted(reaction.UseRegex ? "Regex pattern" : "Trigger phrase");
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.InputText("##Trigger", ref trigger, Service.configuration!.MaxRegexLength))
+            {
+                if (reaction.UseRegex)
+                    reaction.CustomPhrase = trigger;
+                else
+                    reaction.TriggerPhrase = trigger;
+                Service.InitializeRegex(CurrentReactionIndex, true);
+                TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                Service.configuration.Save();
+            }
+
+            if (!reaction.UseRegex)
+                ImGui.TextDisabled("Separate alternatives with |, for example: please do|simon says");
+
+            var useRegex = reaction.UseRegex;
+            if (ImGui.Checkbox("Use Regex", ref useRegex))
+            {
+                reaction.UseRegex = useRegex;
+                Service.InitializeRegex(CurrentReactionIndex, true);
+                TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                Service.configuration.Save();
+            }
+
+            if (reaction.UseRegex)
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Reset regex"))
+                {
+                    reaction.CustomPhrase = Service.GetDefaultRegex(CurrentReactionIndex);
+                    reaction.ReplaceMatch = Service.GetDefaultReplaceMatch();
+                    Service.InitializeRegex(CurrentReactionIndex, true);
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    Service.configuration.Save();
+                }
+
+                var replacement = reaction.ReplaceMatch;
+                ImGui.TextUnformatted("Replacement");
+                ImGui.SetNextItemWidth(-1);
+                if (ImGui.InputTextMultiline("##Replacement", ref replacement, 500, new Vector2(-1, 65)))
+                {
+                    reaction.ReplaceMatch = replacement;
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    Service.configuration.Save();
+                }
+            }
+
+            var testInput = reaction.TestInput;
+            ImGui.TextUnformatted("Test message");
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.InputText("##TestInput", ref testInput, 500))
+            {
+                reaction.TestInput = testInput;
+                TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                Service.configuration.Save();
+            }
+
+            if (string.IsNullOrWhiteSpace(testInput))
+                ImGui.TextDisabled("Enter a test message to preview the generated command.");
+            else if (string.IsNullOrWhiteSpace(TextCommand.Main))
+                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), "No match");
+            else
+            {
+                var generatedLines = TextCommand.Main.Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries);
+                var allowedCount = 0;
+                var blockedCount = 0;
+                ImGui.TextUnformatted("Generated commands");
+                foreach (var line in generatedLines)
+                {
+                    var generatedCommand = Service.FormatCommand(line);
+                    if (string.IsNullOrWhiteSpace(generatedCommand.Main))
+                        continue;
+
+                    if (Service.IsCommandAllowed(reaction, generatedCommand.Main, out var reason))
+                    {
+                        allowedCount++;
+                        ImGui.TextColored(new Vector4(0.35f, 0.9f, 0.45f, 1), $"Allowed  {generatedCommand}  -  {reason}");
+                    }
+                    else
+                    {
+                        blockedCount++;
+                        ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1), $"Blocked  {generatedCommand}  -  {reason}");
+                    }
+                }
+
+                if (blockedCount == 0)
+                    ImGui.TextColored(new Vector4(0.35f, 0.9f, 0.45f, 1), $"All {allowedCount} commands will execute.");
+                else
+                    ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), $"{allowedCount} allowed, {blockedCount} blocked.");
+                if (reaction.UseRegex)
+                    ImGui.TextDisabled($"Matched: {TextCommand.Args}");
+            }
+        }
+
+        private static void DrawCommandPermissionsEditor(Reaction reaction)
+        {
+            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
+            if (!ImGui.CollapsingHeader("Command Rules##ReactionEditorCommands"))
+                return;
+
+            var allowAllCommands = reaction.AllowAllCommands;
+            if (ImGui.Checkbox("Allow all text commands", ref allowAllCommands))
+            {
+                if (allowAllCommands)
+                {
+                    PendingAllowAllReaction = CurrentReactionIndex;
+                    ImGui.OpenPopup("Enable Allow All?");
+                }
+                else
+                {
+                    reaction.AllowAllCommands = false;
+                    Service.configuration!.Save();
+                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                }
+            }
+
+            if (reaction.AllowAllCommands)
+                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), "Any non-blacklisted text command may run for this reaction.");
+
+            if (ImGui.BeginPopupModal("Enable Allow All?", ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.TextUnformatted("This permits any text command that is not explicitly denied.");
+                ImGui.TextUnformatted("Only enable it for trusted triggers and channels.");
+                if (ImGui.Button("Enable") && Service.IsValidReactionIndex(PendingAllowAllReaction))
+                {
+                    Service.configuration!.Reactions[PendingAllowAllReaction].AllowAllCommands = true;
+                    Service.configuration.Save();
+                    TextCommand = Service.GetTestInputCommand(PendingAllowAllReaction);
+                    PendingAllowAllReaction = -1;
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    PendingAllowAllReaction = -1;
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.EndPopup();
+            }
+
+            DrawCommandRulesEditor(reaction);
+        }
+
+        private static void DrawEmoteBehaviorEditor(Reaction reaction)
+        {
+            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
+            if (!ImGui.CollapsingHeader("Emote Behavior##ReactionEditorEmotes"))
+                return;
+
+            var motionOnly = reaction.MotionOnly;
+            if (ImGui.Checkbox("Motion only", ref motionOnly))
+            {
+                reaction.MotionOnly = motionOnly;
+                Service.configuration!.Save();
+            }
+            ImGui.TextDisabled("Suppresses emote chat text while still playing the animation.");
         }
 
         private static void DuplicateReaction(int index)
@@ -498,25 +776,103 @@ namespace PuppetMaster
 
             if (ImGui.BeginTabItem("Reactions"))
             {
-                if (ImGui.Button($"Add##ReactionAddButton"))
+                var configuration = Service.configuration!;
+                var enabledCount = 0;
+                var attentionCount = 0;
+                foreach (var reaction in configuration.Reactions)
+                {
+                    if (reaction.Enabled)
+                        enabledCount++;
+                    if (GetReactionStatus(reaction).NeedsAttention)
+                        attentionCount++;
+                }
+
+                ImGui.TextUnformatted($"{configuration.Reactions.Count} reactions  |  {enabledCount} enabled  |  {attentionCount} need attention");
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Enable all"))
+                    Service.SetEnabledAll(true);
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Disable all"))
+                    Service.SetEnabledAll(false);
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Add New##ReactionAddButton"))
                 {
                     Service.semaphore.WaitOne();
-                    Service.configuration!.Reactions.Add(new Reaction() { Name = "Reaction" });
+                    configuration.Reactions.Add(Reaction.CreateDefault());
                     Service.semaphore.Release();
-                    SelectReaction(Service.configuration.Reactions.Count - 1);
+                    SelectReaction(configuration.Reactions.Count - 1);
                     SelectReactionEditor = true;
+                }
+
+                var showReactionNotifications = configuration.ShowReactionNotifications;
+                if (ImGui.Checkbox("Show reaction progress notifications", ref showReactionNotifications))
+                {
+                    configuration.ShowReactionNotifications = showReactionNotifications;
+                    configuration.Save();
+                }
+
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted("Show command progress and a Cancel button while a reaction is running.");
+                    ImGui.EndTooltip();
                 }
 
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                for (var index = 0; index < Service.configuration!.Reactions.Count; index++)
+                ImGui.SetNextItemWidth(-1);
+                ImGui.InputTextWithHint("##ReactionSearch", "Search reactions by name or trigger...", ref ReactionSearch, 100);
+
+                var visibleCount = 0;
+                if (ImGui.BeginTable("##ReactionTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings))
                 {
-                    DrawReaction(index);
+                    ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 35);
+                    ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                    ImGui.TableSetupColumn("Trigger", ImGuiTableColumnFlags.WidthStretch, 1.5f);
+                    ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthFixed, 65);
+                    ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 90);
+                    ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 155);
+                    ImGui.TableHeadersRow();
+
+                    for (var index = 0; index < configuration.Reactions.Count; index++)
+                    {
+                        var reaction = configuration.Reactions[index];
+                        var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
+                        if (!string.IsNullOrWhiteSpace(ReactionSearch) &&
+                            !reaction.Name.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase) &&
+                            !trigger.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        visibleCount++;
+                        DrawReaction(index);
+                    }
+                    ImGui.EndTable();
+                }
+
+                if (visibleCount == 0)
+                    ImGui.TextDisabled("No reactions match the current search.");
+
+                if (PendingReactionDuplicate >= 0 && PendingReactionDuplicate < configuration.Reactions.Count)
+                {
+                    var duplicateIndex = PendingReactionDuplicate;
+                    PendingReactionDuplicate = -1;
+                    DuplicateReaction(duplicateIndex);
                 }
 
                 DrawDeleteReactionConfirmation();
+
+                ImGui.Spacing();
+                ImGui.TextDisabled($"Configuration schema: v{configuration.Version} (current: v{ConfigVersion.CURRENT})");
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted("Saved settings format version. Older configurations are migrated automatically.");
+                    ImGui.EndTooltip();
+                }
 
                 ImGui.EndTabItem();
             }
@@ -541,155 +897,21 @@ namespace PuppetMaster
 
                 if (Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit))
                 {
-                    ImGui.PushItemWidth(350);
-                    ImGui.Indent(40);
-                    ImGui.Text("Trigger");
+                    var reaction = Service.configuration.Reactions[CurrentReactionIndex];
+                    var status = GetReactionStatus(reaction);
+                    ImGui.TextUnformatted(reaction.Name);
                     ImGui.SameLine();
-
-                    var trigger = Service.configuration.Reactions[CurrentReactionIndex].UseRegex ? Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase;
-                    if (ImGui.InputText("##Trigger", ref trigger, Service.configuration.MaxRegexLength))
-                    {
-                        Service.semaphore.WaitOne();
-                        if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                            Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase = trigger;
-                        else
-                            Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase = trigger;
-
-                        Service.InitializeRegex(CurrentReactionIndex, true);
-                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                        Service.configuration.Save();
-                        Service.semaphore.Release();
-                    }
-                    if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                    {
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("Separate multiple trigger phrases with |\nExample: please do|simon says");
-                            ImGui.EndTooltip();
-                        }
-                    }
-
-                    ImGui.Unindent(35);
-
-                    var replaceMatch = Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch;
-                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                    {
-                        ImGui.Text("Replacement");
-                        ImGui.SameLine();
-                        if (ImGui.InputTextMultiline("##Replacement", ref replaceMatch, 500, new Vector2(350, 80)))
-                        {
-                            Service.semaphore.WaitOne();
-                            Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = replaceMatch;
-                            Service.configuration.Save();
-                            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                            Service.semaphore.Release();
-                        }
-                    }
-
-                    ImGui.Indent(50);
-                    ImGui.Text("Test");
+                    ImGui.TextColored(status.Color, status.Label);
                     ImGui.SameLine();
-                    
-                    var testInput = Service.configuration.Reactions[CurrentReactionIndex].TestInput;
-                    if (ImGui.InputText("##TestInput", ref testInput, 500))
-                    {
-                        Service.semaphore.WaitOne();
-                        Service.configuration.Reactions[CurrentReactionIndex].TestInput = testInput;
-                        Service.configuration.Save();
-                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                        Service.semaphore.Release();
-                    }
-                    
-                    ImGui.Unindent(45);
-                    
-                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                    {
-                        ImGui.Text($"Matched: {TextCommand.Args}");
-                    }
-                    
-                    ImGui.Text($"Result: {TextCommand.Main}");
+                    ImGui.TextDisabled($"{reaction.EnabledChannels.Count} channels");
 
-                    ImGui.PopItemWidth();
-                    ImGui.Spacing();
-                    ImGui.Spacing();
-                    
-                    ImGui.Separator(); //----------------------------------------------
-                    
-                    var useRegex = Service.configuration.Reactions[CurrentReactionIndex].UseRegex;
-                    if (ImGui.Checkbox("Use Regex", ref useRegex))
-                    {
-                        Service.semaphore.WaitOne();
-                        Service.configuration.Reactions[CurrentReactionIndex].UseRegex = useRegex;
-                        Service.configuration.Save();
-                        Service.InitializeRegex(CurrentReactionIndex);
-                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                        Service.semaphore.Release();
-                    }
-                    
-                    if (Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.Button("Reset"))
-                        {
-                            Service.semaphore.WaitOne();
-                            Service.configuration.Reactions[CurrentReactionIndex].CustomPhrase = replaceMatch = Service.GetDefaultRegex(CurrentReactionIndex);
-                            Service.configuration.Reactions[CurrentReactionIndex].ReplaceMatch = trigger = Service.GetDefaultReplaceMatch();
-                            Service.InitializeRegex(CurrentReactionIndex, true);
-                            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                            Service.configuration.Save();
-                            Service.semaphore.Release();
-                        }
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.BeginTooltip();
-                            ImGui.TextUnformatted("Initialize regex and replacement\nbased on current non-regex trigger phrase");
-                            ImGui.EndTooltip();
-                        }
-                    }
-                    
-                    var allowAllCommands = Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands;
-                    if (ImGui.Checkbox("Allow all text commands", ref allowAllCommands))
-                    {
-                        Service.semaphore.WaitOne();
-                        Service.configuration.Reactions[CurrentReactionIndex].AllowAllCommands = allowAllCommands;
-                        Service.configuration.Save();
-                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                        Service.semaphore.Release();
-                    }
-                   
-                    if (!Service.configuration.Reactions[CurrentReactionIndex].UseRegex)
-                    {
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.BeginTooltip();
-                            ImGui.Text("If command has subcommands, enclose sequence in parentheses.");
-                            ImGui.Text("For placeholders, replace angle brackets with square brackets.");
-                            var found = Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase.IndexOf('|');
-                            var firstTriggerPhrase = found == -1 ? Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase : Service.configuration.Reactions[CurrentReactionIndex].TriggerPhrase[..found];
-                            ImGui.Text("Example: " + firstTriggerPhrase + " (ac \"Vercure\" [t])");
-                            ImGui.EndTooltip();
-                        }
-                    }
-                    
-                    var allowSit = Service.configuration.Reactions[CurrentReactionIndex].AllowSit;
-                    if (ImGui.Checkbox("Allow \"sit\" or \"groundsit\" requests", ref allowSit))
-                    {
-                        Service.configuration.Reactions[CurrentReactionIndex].AllowSit = allowSit;
-                        Service.configuration.Save();
-                    }
-                    
-                    var motionOnly = Service.configuration.Reactions[CurrentReactionIndex].MotionOnly;
-                    if (ImGui.Checkbox("Motion only", ref motionOnly))
-                    {
-                        Service.configuration.Reactions[CurrentReactionIndex].MotionOnly = motionOnly;
-                        Service.configuration.Save();
-                    }
-                    
-                    ImGui.Spacing();
-                    ImGui.Separator();
-                    ImGui.Spacing();
-                    DrawChannelSelector(CurrentReactionIndex);
+                    DrawTriggerEditor(reaction);
+                    DrawCommandPermissionsEditor(reaction);
+                    DrawEmoteBehaviorEditor(reaction);
+
+                    ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
+                    if (ImGui.CollapsingHeader($"Enabled Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannels"))
+                        DrawChannelSelector(CurrentReactionIndex);
                 }
                 
                 ImGui.EndTabItem();

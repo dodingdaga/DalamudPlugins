@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\PuppetMaster\Configuration.cs" Link="Configuration.cs" />
+    <Compile Include="..\PuppetMaster\ConfigurationMigrator.cs" Link="ConfigurationMigrator.cs" />
+    <None Include="..\PuppetMaster\TestConfigs\*.json" Link="TestConfigs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
