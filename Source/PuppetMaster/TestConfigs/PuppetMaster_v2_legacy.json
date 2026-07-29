@@ -1,6 +1,11 @@
 {
   "Version": 2,
   "ShowReactionNotifications": false,
+  "DefaultCommandWhitelist": ["/echo", "/ECHO"],
+  "DefaultCommandBlacklist": ["/sit", "/SIT", "/groundsit"],
+  "DefaultAllowAllCommands": true,
+  "DefaultMotionOnly": false,
+  "DefaultEnabledChannels": [10, 10, 14],
   "Reactions": [
     {
       "Enabled": true,

@@ -67,6 +67,11 @@ public static class ConfigurationMigrator
     private static bool MigrateV1ToV2(Configuration configuration)
     {
         configuration.ShowReactionNotifications = true;
+        configuration.DefaultCommandWhitelist = [];
+        configuration.DefaultCommandBlacklist = [.. LegacySitCommands];
+        configuration.DefaultAllowAllCommands = false;
+        configuration.DefaultMotionOnly = true;
+        configuration.DefaultEnabledChannels = [];
         configuration.Version = 2;
         return true;
     }
@@ -74,6 +79,13 @@ public static class ConfigurationMigrator
     private static bool NormalizeLegacyCommandRules(Configuration configuration)
     {
         var changed = false;
+        configuration.DefaultCommandWhitelist ??= [];
+        configuration.DefaultCommandBlacklist ??= [.. LegacySitCommands];
+        configuration.DefaultEnabledChannels ??= [];
+        changed |= DeduplicateCommands(configuration.DefaultCommandWhitelist);
+        changed |= DeduplicateCommands(configuration.DefaultCommandBlacklist);
+        changed |= DeduplicateChannels(configuration.DefaultEnabledChannels);
+
         foreach (var reaction in configuration.Reactions)
         {
             reaction.CommandWhitelist ??= [];
@@ -118,6 +130,23 @@ public static class ConfigurationMigrator
         return true;
     }
 
+    private static bool DeduplicateChannels(List<int> channels)
+    {
+        var seen = new HashSet<int>();
+        var writeIndex = 0;
+        for (var readIndex = 0; readIndex < channels.Count; readIndex++)
+        {
+            if (!seen.Add(channels[readIndex]))
+                continue;
+            channels[writeIndex++] = channels[readIndex];
+        }
+
+        if (writeIndex == channels.Count)
+            return false;
+        channels.RemoveRange(writeIndex, channels.Count - writeIndex);
+        return true;
+    }
+
     private static bool ContainsCommand(List<string> commands, string command)
     {
         return commands.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
@@ -129,6 +158,9 @@ public static class ConfigurationMigrator
             throw new InvalidOperationException("Configuration migration did not reach the current version.");
         if (configuration.Reactions == null)
             throw new InvalidOperationException("Configuration reactions cannot be null.");
+        if (configuration.DefaultCommandWhitelist == null || configuration.DefaultCommandBlacklist == null ||
+            configuration.DefaultEnabledChannels == null)
+            throw new InvalidOperationException("Configuration command defaults cannot be null.");
         foreach (var reaction in configuration.Reactions)
         {
             if (reaction.EnabledChannels == null || reaction.CommandWhitelist == null || reaction.CommandBlacklist == null)

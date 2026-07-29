@@ -16,6 +16,10 @@ Run("PuppetMaster_v0.json", configuration =>
     Assert(reaction.EnabledChannels.Contains(10), "v0 enabled Say channel should be preserved");
     Assert(reaction.CommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "v0 sit rules should normalize");
     Assert(configuration.ShowReactionNotifications, "v0 should receive the v2 notification default");
+    Assert(configuration.DefaultCommandWhitelist.Count == 0, "v0 should receive an empty default whitelist");
+    Assert(configuration.DefaultCommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "v0 should receive safe command defaults");
+    Assert(!configuration.DefaultAllowAllCommands && configuration.DefaultMotionOnly, "v0 should receive safe command behavior defaults");
+    Assert(configuration.DefaultEnabledChannels.Count == 0, "v0 should receive empty channel defaults");
 });
 
 Run("PuppetMaster_v1.json", configuration =>
@@ -24,6 +28,9 @@ Run("PuppetMaster_v1.json", configuration =>
     Assert(configuration.ShowReactionNotifications, "v1 should enable notification default");
     Assert(configuration.Reactions[0].AllowAllCommands, "v1 AllowAllCommands should be preserved");
     Assert(configuration.Reactions[0].EnabledChannels.SequenceEqual([10, 14]), "v1 channels should be preserved");
+    Assert(configuration.DefaultCommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "v1 should receive safe command defaults");
+    Assert(!configuration.DefaultAllowAllCommands && configuration.DefaultMotionOnly, "v1 should receive safe command behavior defaults");
+    Assert(configuration.DefaultEnabledChannels.Count == 0, "v1 should receive empty channel defaults");
 });
 
 Run("PuppetMaster_v2_legacy.json", configuration =>
@@ -35,6 +42,22 @@ Run("PuppetMaster_v2_legacy.json", configuration =>
     Assert(reaction.AllowAllCommands, "existing AllowAllCommands should be preserved");
     Assert(reaction.CommandWhitelist.SequenceEqual(["/echo"]), "whitelist should deduplicate case-insensitively");
     Assert(reaction.CommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "blacklist should deduplicate and add legacy sit rules");
+    Assert(configuration.DefaultCommandWhitelist.SequenceEqual(["/echo"]), "default whitelist should deduplicate case-insensitively");
+    Assert(configuration.DefaultCommandBlacklist.SequenceEqual(["/sit", "/groundsit"]), "default blacklist should deduplicate case-insensitively");
+    Assert(configuration.DefaultEnabledChannels.SequenceEqual([10, 14]), "default channels should deduplicate");
+
+    var created = Reaction.CreateDefault(
+        commandWhitelist: configuration.DefaultCommandWhitelist,
+        commandBlacklist: configuration.DefaultCommandBlacklist,
+        allowAllCommands: configuration.DefaultAllowAllCommands,
+        motionOnly: configuration.DefaultMotionOnly,
+        enabledChannels: configuration.DefaultEnabledChannels);
+    configuration.DefaultCommandWhitelist.Add("/wait");
+    configuration.DefaultEnabledChannels.Add(57);
+    Assert(created.CommandWhitelist.SequenceEqual(["/echo"]), "new reactions should copy rather than share command defaults");
+    Assert(created.AllowAllCommands, "new reactions should copy the allow-all default");
+    Assert(!created.MotionOnly, "new reactions should copy the emote motion default");
+    Assert(created.EnabledChannels.SequenceEqual([10, 14]), "new reactions should copy rather than share channel defaults");
 });
 
 var future = new Configuration { Version = ConfigVersion.CURRENT + 1 };

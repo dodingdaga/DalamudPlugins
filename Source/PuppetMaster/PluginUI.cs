@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Windowing;
+using ECommons.ImGuiMethods;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace PuppetMaster
         private static bool OpenReactionDeletePopup;
         private static bool SelectReactionEditor;
         private static int ReactionEditorSection;
+        private static int SettingsSection;
         private static string ReactionEditorSearch = string.Empty;
         private static string ChannelSearch = string.Empty;
         private static string ReactionSearch = string.Empty;
@@ -28,6 +30,10 @@ namespace PuppetMaster
         private static string BlacklistCommandInput = string.Empty;
         private static string WhitelistCommandSearch = string.Empty;
         private static string BlacklistCommandSearch = string.Empty;
+        private static string DefaultWhitelistCommandInput = string.Empty;
+        private static string DefaultBlacklistCommandInput = string.Empty;
+        private static string DefaultWhitelistCommandSearch = string.Empty;
+        private static string DefaultBlacklistCommandSearch = string.Empty;
 
         private static readonly int[] CommonChannelIndexes = [16, 17, 18, 19, 20, 21, 22];
         private static readonly int[] CrossWorldLinkshellIndexes = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -211,7 +217,14 @@ namespace PuppetMaster
                 ? Enum.GetName(typeof(XivChatType), (ushort)entry.ChatTypeId)
                 : null;
             var channelName = officialChannelName ?? $"channel {entry.ChatTypeId}";
-            var reaction = Reaction.CreateDefault($"Reaction from {channelName}");
+            var reaction = Reaction.CreateDefault(
+                $"Reaction from {channelName}",
+                configuration.DefaultCommandWhitelist,
+                configuration.DefaultCommandBlacklist,
+                configuration.DefaultAllowAllCommands,
+                configuration.DefaultMotionOnly,
+                configuration.DefaultEnabledChannels);
+            reaction.EnabledChannels.Clear();
             reaction.UseRegex = true;
             reaction.CustomPhrase = $"^{Regex.Escape(entry.TriggerText)}$";
             reaction.TestInput = entry.TriggerText;
@@ -253,11 +266,16 @@ namespace PuppetMaster
             List<string> oppositeCommands,
             ref string input,
             ref string search,
-            string id)
+            string id,
+            bool refreshReactionTest = true,
+            bool showDescriptionWarning = false)
         {
             var configuration = Service.configuration!;
             ImGui.TextUnformatted($"{label} ({commands.Count})");
-            ImGui.TextDisabled(description);
+            if (showDescriptionWarning)
+                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), description);
+            else
+                ImGui.TextDisabled(description);
 
             if (commands.Count >= 5)
             {
@@ -280,7 +298,8 @@ namespace PuppetMaster
                     {
                         commands.Remove(command);
                         configuration.Save();
-                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                        if (refreshReactionTest)
+                            TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                     }
                 }
 
@@ -308,7 +327,8 @@ namespace PuppetMaster
                         commands.Add(command);
                     input = string.Empty;
                     configuration.Save();
-                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    if (refreshReactionTest)
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                 }
             }
         }
@@ -319,14 +339,16 @@ namespace PuppetMaster
 
             DrawCommandListEditor(
                 "Allowed commands",
-                reaction.AllowAllCommands
+                reaction.AllowAllCommands && reaction.CommandWhitelist.Count > 0
                     ? "Ignored while Allow all text commands is enabled."
                     : "Non-emote commands must appear here.",
                 reaction.CommandWhitelist,
                 reaction.CommandBlacklist,
                 ref WhitelistCommandInput,
                 ref WhitelistCommandSearch,
-                "Whitelist");
+                "Whitelist",
+                true,
+                reaction.AllowAllCommands && reaction.CommandWhitelist.Count > 0);
 
             ImGui.Spacing();
             DrawCommandListEditor(
@@ -418,15 +440,21 @@ namespace PuppetMaster
                     if (string.IsNullOrWhiteSpace(generatedCommand.Main))
                         continue;
 
-                    if (Service.IsCommandAllowed(reaction, generatedCommand.Main, out var reason))
+                    if (Service.IsCommandAllowed(reaction, generatedCommand.Main, out _))
                     {
                         allowedCount++;
-                        ImGui.TextColored(new Vector4(0.35f, 0.9f, 0.45f, 1), $"Allowed  {generatedCommand}  -  {reason}");
+                        var allowedColor = new Vector4(0.35f, 0.9f, 0.45f, 1);
+                        FontAwesome.Print(allowedColor, FontAwesome.Check);
+                        ImGui.SameLine();
+                        ImGui.TextColored(allowedColor, generatedCommand.ToString());
                     }
                     else
                     {
                         blockedCount++;
-                        ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1), $"Blocked  {generatedCommand}  -  {reason}");
+                        var blockedColor = new Vector4(1f, 0.35f, 0.35f, 1);
+                        FontAwesome.Print(blockedColor, FontAwesome.Cross);
+                        ImGui.SameLine();
+                        ImGui.TextColored(blockedColor, generatedCommand.ToString());
                     }
                 }
 
@@ -480,8 +508,6 @@ namespace PuppetMaster
                 }
                 ImGui.EndPopup();
             }
-
-            DrawCommandRulesEditor(reaction);
         }
 
         private static void DrawEmoteBehaviorEditor(Reaction reaction)
@@ -557,10 +583,9 @@ namespace PuppetMaster
             ImGui.EndPopup();
         }
 
-        private static void DrawChannelGroup(string name, int reactionIndex, IReadOnlyList<ChannelSetting> channels)
+        private static void DrawChannelGroup(string name, List<int> selectedChannels, string idSuffix, IReadOnlyList<ChannelSetting> channels)
         {
             var configuration = Service.configuration!;
-            var selectedChannels = configuration.Reactions[reactionIndex].EnabledChannels;
             var visibleChannels = new List<ChannelSetting>();
             foreach (var channel in channels)
             {
@@ -586,10 +611,10 @@ namespace PuppetMaster
             if (!string.IsNullOrWhiteSpace(ChannelSearch))
                 ImGui.SetNextItemOpen(true, ImGuiCond.Always);
 
-            if (!ImGui.CollapsingHeader($"{name} ({selectedCount}/{visibleChannels.Count})##ChannelGroup{name}"))
+            if (!ImGui.CollapsingHeader($"{name} ({selectedCount}/{visibleChannels.Count})##ChannelGroup{idSuffix}{name}"))
                 return;
 
-            if (ImGui.SmallButton($"All##ChannelGroupAll{name}"))
+            if (ImGui.SmallButton($"All##ChannelGroupAll{idSuffix}{name}"))
             {
                 foreach (var channel in visibleChannels)
                 {
@@ -600,21 +625,21 @@ namespace PuppetMaster
             }
 
             ImGui.SameLine();
-            if (ImGui.SmallButton($"None##ChannelGroupNone{name}"))
+            if (ImGui.SmallButton($"None##ChannelGroupNone{idSuffix}{name}"))
             {
                 foreach (var channel in visibleChannels)
                     selectedChannels.Remove(channel.ChatType);
                 configuration.Save();
             }
 
-            if (ImGui.BeginTable($"##ChannelTable{name}", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
+            if (ImGui.BeginTable($"##ChannelTable{idSuffix}{name}", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
             {
                 for (var index = 0; index < visibleChannels.Count; index++)
                 {
                     ImGui.TableNextColumn();
                     var channel = visibleChannels[index];
                     var enabled = selectedChannels.Contains(channel.ChatType);
-                    if (ImGui.Checkbox($"{channel.Name}##GroupedChannel{name}{index}{channel.ChatType}", ref enabled))
+                    if (ImGui.Checkbox($"{channel.Name}##GroupedChannel{idSuffix}{name}{index}{channel.ChatType}", ref enabled))
                     {
                         if (enabled)
                         {
@@ -639,7 +664,7 @@ namespace PuppetMaster
             }
         }
 
-        private static void DrawDefaultChannelGroup(string name, int reactionIndex, int[] indexes)
+        private static void DrawDefaultChannelGroup(string name, List<int> selectedChannels, string idSuffix, int[] indexes)
         {
             var defaultChannels = Service.configuration!.EnabledChannels;
             var channels = new List<ChannelSetting>(indexes.Length);
@@ -648,7 +673,7 @@ namespace PuppetMaster
                 if (index < defaultChannels.Count)
                     channels.Add(defaultChannels[index]);
             }
-            DrawChannelGroup(name, reactionIndex, channels);
+            DrawChannelGroup(name, selectedChannels, idSuffix, channels);
         }
 
         private static List<ChannelSetting> GetAdvancedChannels()
@@ -712,11 +737,19 @@ namespace PuppetMaster
         private static void DrawChannelSelector(int reactionIndex)
         {
             var configuration = Service.configuration!;
-            var selectedChannels = configuration.Reactions[reactionIndex].EnabledChannels;
+            DrawChannelSelector(
+                configuration.Reactions[reactionIndex].EnabledChannels,
+                $"Reaction{reactionIndex}",
+                "This reaction will not listen to any messages.");
+        }
+
+        private static void DrawChannelSelector(List<int> selectedChannels, string idSuffix, string emptyMessage)
+        {
+            var configuration = Service.configuration!;
 
             ImGui.TextUnformatted($"Enabled Channels ({selectedChannels.Count} selected)");
             ImGui.SameLine();
-            if (ImGui.SmallButton("All##AllReactionChannels"))
+            if (ImGui.SmallButton($"All##AllChannels{idSuffix}"))
             {
                 selectedChannels.Clear();
                 foreach (var channel in configuration.EnabledChannels)
@@ -732,43 +765,42 @@ namespace PuppetMaster
             }
 
             ImGui.SameLine();
-            if (ImGui.SmallButton("None##NoReactionChannels"))
+            if (ImGui.SmallButton($"None##NoChannels{idSuffix}"))
             {
                 selectedChannels.Clear();
                 configuration.Save();
             }
 
             if (selectedChannels.Count == 0)
-                ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1), "This reaction will not listen to any messages.");
+                ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1), emptyMessage);
 
-            DrawSelectedChannels(reactionIndex);
+            DrawSelectedChannels(selectedChannels, idSuffix);
 
             ImGui.SetNextItemWidth(-70);
-            ImGui.InputTextWithHint("##ChannelSearch", "Search channels by name or ID...", ref ChannelSearch, 100);
+            ImGui.InputTextWithHint($"##ChannelSearch{idSuffix}", "Search channels by name or ID...", ref ChannelSearch, 100);
             if (!string.IsNullOrEmpty(ChannelSearch))
             {
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Clear##ChannelSearchClear"))
+                if (ImGui.SmallButton($"Clear##ChannelSearchClear{idSuffix}"))
                     ChannelSearch = string.Empty;
             }
 
-            DrawDefaultChannelGroup("Common", reactionIndex, CommonChannelIndexes);
-            DrawDefaultChannelGroup("Cross-world Linkshells", reactionIndex, CrossWorldLinkshellIndexes);
-            DrawDefaultChannelGroup("Linkshells", reactionIndex, LinkshellIndexes);
+            DrawDefaultChannelGroup("Common", selectedChannels, idSuffix, CommonChannelIndexes);
+            DrawDefaultChannelGroup("Cross-world Linkshells", selectedChannels, idSuffix, CrossWorldLinkshellIndexes);
+            DrawDefaultChannelGroup("Linkshells", selectedChannels, idSuffix, LinkshellIndexes);
 
             var advancedChannels = GetAdvancedChannels();
             if (advancedChannels.Count > 0)
-                DrawChannelGroup("Advanced", reactionIndex, advancedChannels);
+                DrawChannelGroup("Advanced", selectedChannels, idSuffix, advancedChannels);
 
             var customChannels = GetCustomChannels();
             if (customChannels.Count > 0)
-                DrawChannelGroup("Custom", reactionIndex, customChannels);
+                DrawChannelGroup("Custom", selectedChannels, idSuffix, customChannels);
         }
 
-        private static void DrawSelectedChannels(int reactionIndex)
+        private static void DrawSelectedChannels(List<int> selectedChannels, string idSuffix)
         {
             var configuration = Service.configuration!;
-            var selectedChannels = configuration.Reactions[reactionIndex].EnabledChannels;
             if (selectedChannels.Count == 0)
                 return;
 
@@ -784,7 +816,7 @@ namespace PuppetMaster
             ImGui.TextUnformatted($"Selected Channels ({selectedChannels.Count})");
             ImGui.Separator();
 
-            if (ImGui.BeginTable("##SelectedChannelTable", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
+            if (ImGui.BeginTable($"##SelectedChannelTable{idSuffix}", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
             {
                 var selectedSnapshot = selectedChannels.ToArray();
                 for (var index = 0; index < selectedSnapshot.Length; index++)
@@ -796,7 +828,7 @@ namespace PuppetMaster
                     var enabled = true;
 
                     ImGui.TableNextColumn();
-                    if (ImGui.Checkbox($"{name}##SelectedChannel{chatTypeId}_{index}", ref enabled) && !enabled)
+                    if (ImGui.Checkbox($"{name}##SelectedChannel{idSuffix}{chatTypeId}_{index}", ref enabled) && !enabled)
                     {
                         selectedChannels.Remove(chatTypeId);
                         configuration.Save();
@@ -894,24 +926,15 @@ namespace PuppetMaster
                 if (ImGui.SmallButton("Add New##ReactionAddButton"))
                 {
                     Service.semaphore.WaitOne();
-                    configuration.Reactions.Add(Reaction.CreateDefault());
+                    configuration.Reactions.Add(Reaction.CreateDefault(
+                        commandWhitelist: configuration.DefaultCommandWhitelist,
+                        commandBlacklist: configuration.DefaultCommandBlacklist,
+                        allowAllCommands: configuration.DefaultAllowAllCommands,
+                        motionOnly: configuration.DefaultMotionOnly,
+                        enabledChannels: configuration.DefaultEnabledChannels));
                     Service.semaphore.Release();
                     SelectReaction(configuration.Reactions.Count - 1);
                     SelectReactionEditor = true;
-                }
-
-                var showReactionNotifications = configuration.ShowReactionNotifications;
-                if (ImGui.Checkbox("Show reaction progress notifications", ref showReactionNotifications))
-                {
-                    configuration.ShowReactionNotifications = showReactionNotifications;
-                    configuration.Save();
-                }
-
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.TextUnformatted("Show command progress and a Cancel button while a reaction is running.");
-                    ImGui.EndTooltip();
                 }
 
                 ImGui.Spacing();
@@ -1069,6 +1092,16 @@ namespace PuppetMaster
                     ImGui.TextColored(status.Color, status.Label);
                     ImGui.SameLine();
                     ImGui.TextDisabled($"{reaction.EnabledChannels.Count} channels");
+                    ImGui.SameLine();
+                    if (Service.configuration.Reactions.Count <= 1)
+                        ImGui.BeginDisabled();
+                    if (ImGui.SmallButton("Delete Reaction##ReactionEditorDelete"))
+                    {
+                        PendingReactionDelete = CurrentReactionIndex;
+                        OpenReactionDeletePopup = true;
+                    }
+                    if (Service.configuration.Reactions.Count <= 1)
+                        ImGui.EndDisabled();
 
                     ImGui.Spacing();
                     if (ImGui.BeginChild("##ReactionEditorSectionNav", new Vector2(165, 0), true))
@@ -1077,10 +1110,8 @@ namespace PuppetMaster
                             ReactionEditorSection = 0;
                         if (ImGui.Selectable("Commands", ReactionEditorSection == 1))
                             ReactionEditorSection = 1;
-                        if (ImGui.Selectable("Emotes", ReactionEditorSection == 2))
+                        if (ImGui.Selectable($"Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannelSection", ReactionEditorSection == 2))
                             ReactionEditorSection = 2;
-                        if (ImGui.Selectable($"Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannelSection", ReactionEditorSection == 3))
-                            ReactionEditorSection = 3;
                     }
                     ImGui.EndChild();
                     ImGui.SameLine();
@@ -1090,14 +1121,21 @@ namespace PuppetMaster
                         if (ReactionEditorSection == 0)
                             DrawTriggerEditor(reaction);
                         else if (ReactionEditorSection == 1)
+                        {
+                            ImGui.TextUnformatted("Text Command Rules");
+                            ImGui.Separator();
                             DrawCommandPermissionsEditor(reaction);
-                        else if (ReactionEditorSection == 2)
                             DrawEmoteBehaviorEditor(reaction);
+                            ImGui.Spacing();
+                            DrawCommandRulesEditor(reaction);
+                        }
                         else
                             DrawChannelSelector(CurrentReactionIndex);
                     }
                     ImGui.EndChild();
                 }
+
+                DrawDeleteReactionConfirmation();
                 
                 ImGui.EndTabItem();
             }
@@ -1137,6 +1175,95 @@ namespace PuppetMaster
                 if (customChannelCount == 0)
                     ImGui.TextDisabled("No custom channels configured.");
                 
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Settings"))
+            {
+                var configuration = Service.configuration!;
+                if (ImGui.BeginChild("##SettingsSectionNav", new Vector2(210, 0), true))
+                {
+                    if (ImGui.Selectable("General", SettingsSection == 0))
+                        SettingsSection = 0;
+                    if (ImGui.Selectable("Default Command Rules", SettingsSection == 1))
+                        SettingsSection = 1;
+                    if (ImGui.Selectable("Default Channel Rules", SettingsSection == 2))
+                        SettingsSection = 2;
+                }
+                ImGui.EndChild();
+                ImGui.SameLine();
+
+                if (ImGui.BeginChild("##SettingsSectionContent", new Vector2(0, 0), true))
+                {
+                    if (SettingsSection == 0)
+                    {
+                        ImGui.TextUnformatted("General");
+                        ImGui.Separator();
+                        var showReactionNotifications = configuration.ShowReactionNotifications;
+                        if (ImGui.Checkbox("Show reaction progress notifications", ref showReactionNotifications))
+                        {
+                            configuration.ShowReactionNotifications = showReactionNotifications;
+                            configuration.Save();
+                        }
+                        ImGui.TextDisabled("Shows command progress and a Cancel button while a reaction is running.");
+                    }
+                    else if (SettingsSection == 1)
+                    {
+                        ImGui.TextUnformatted("Default Command Rules");
+                        ImGui.Separator();
+                        ImGui.TextDisabled("Command rules copied into newly created reactions. Existing reactions are unchanged.");
+
+                        var defaultAllowAllCommands = configuration.DefaultAllowAllCommands;
+                        if (ImGui.Checkbox("Allow all text commands by default", ref defaultAllowAllCommands))
+                        {
+                            configuration.DefaultAllowAllCommands = defaultAllowAllCommands;
+                            configuration.Save();
+                        }
+                        if (configuration.DefaultAllowAllCommands)
+                            ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), "New reactions will permit any command that is not denied.");
+
+                        var defaultMotionOnly = configuration.DefaultMotionOnly;
+                        if (ImGui.Checkbox("Motion only for emotes by default", ref defaultMotionOnly))
+                        {
+                            configuration.DefaultMotionOnly = defaultMotionOnly;
+                            configuration.Save();
+                        }
+                        ImGui.TextDisabled("Suppresses emote chat text while still playing the animation.");
+                        ImGui.Spacing();
+
+                        DrawCommandListEditor(
+                            "Allowed by Default",
+                            "Non-emote commands allowed by default.",
+                            configuration.DefaultCommandWhitelist,
+                            configuration.DefaultCommandBlacklist,
+                            ref DefaultWhitelistCommandInput,
+                            ref DefaultWhitelistCommandSearch,
+                            "DefaultWhitelist",
+                            false);
+                        ImGui.Spacing();
+                        DrawCommandListEditor(
+                            "Denied by Default",
+                            "Commands blocked by default, including emotes.",
+                            configuration.DefaultCommandBlacklist,
+                            configuration.DefaultCommandWhitelist,
+                            ref DefaultBlacklistCommandInput,
+                            ref DefaultBlacklistCommandSearch,
+                            "DefaultBlacklist",
+                            false);
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted("Default Channel Rules");
+                        ImGui.Separator();
+                        ImGui.TextDisabled("Channels copied into newly created reactions. Log-created reactions use only their source channel.");
+                        ImGui.Spacing();
+                        DrawChannelSelector(
+                            configuration.DefaultEnabledChannels,
+                            "Defaults",
+                            "New reactions will start without any enabled channels.");
+                    }
+                }
+                ImGui.EndChild();
                 ImGui.EndTabItem();
             }
 

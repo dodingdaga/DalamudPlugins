@@ -40,12 +40,24 @@ namespace PuppetMaster
         public Regex? Rx;
         public Regex? CustomRx;
 
-        public static Reaction CreateDefault(string name = "Reaction")
+        public static Reaction CreateDefault(
+            string name = "Reaction",
+            IEnumerable<string>? commandWhitelist = null,
+            IEnumerable<string>? commandBlacklist = null,
+            bool allowAllCommands = false,
+            bool motionOnly = true,
+            IEnumerable<int>? enabledChannels = null)
         {
             return new Reaction
             {
                 Name = name,
-                CommandBlacklist = ["/sit", "/groundsit", "/lounge"],
+                AllowAllCommands = allowAllCommands,
+                MotionOnly = motionOnly,
+                EnabledChannels = enabledChannels != null ? new List<int>(enabledChannels) : [],
+                CommandWhitelist = commandWhitelist != null ? new List<string>(commandWhitelist) : [],
+                CommandBlacklist = commandBlacklist != null
+                    ? new List<string>(commandBlacklist)
+                    : ["/sit", "/groundsit", "/lounge"],
             };
         }
     }
@@ -72,6 +84,11 @@ namespace PuppetMaster
         public int CurrentReactionEdit = -1;
         public bool DebugLogTypes { get; set; } = false;
         public bool ShowReactionNotifications { get; set; } = true;
+        public List<string> DefaultCommandWhitelist { get; set; } = [];
+        public List<string> DefaultCommandBlacklist { get; set; } = ["/sit", "/groundsit", "/lounge"];
+        public bool DefaultAllowAllCommands { get; set; } = false;
+        public bool DefaultMotionOnly { get; set; } = true;
+        public List<int> DefaultEnabledChannels { get; set; } = [];
         public int MaxRegexLength { get; set; } = 1000;
 
         [NonSerialized]

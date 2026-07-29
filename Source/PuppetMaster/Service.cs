@@ -256,7 +256,12 @@ namespace PuppetMaster
 
             if (configuration.Reactions.Count == 0)
             {
-                configuration.Reactions.Add(Reaction.CreateDefault());
+                configuration.Reactions.Add(Reaction.CreateDefault(
+                    commandWhitelist: configuration.DefaultCommandWhitelist,
+                    commandBlacklist: configuration.DefaultCommandBlacklist,
+                    allowAllCommands: configuration.DefaultAllowAllCommands,
+                    motionOnly: configuration.DefaultMotionOnly,
+                    enabledChannels: configuration.DefaultEnabledChannels));
             }
 
             InitializeRegex();
