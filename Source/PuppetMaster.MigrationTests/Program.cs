@@ -98,6 +98,7 @@ RunExecutionGateTests();
 RunReactionCommandMatcherTests();
 RunRetriggerQueueTests();
 RunRetriggerSchedulerTests();
+RunConfigurationUpgradeTransactionTests(options);
 
 Console.WriteLine("All PuppetMaster configuration migration tests passed.");
 return;
@@ -384,4 +385,82 @@ static void RunRetriggerSchedulerTests()
     Assert(failureScheduler.PendingCount == 0, "scheduler failure should clear its unusable backlog");
 
     Console.WriteLine("PASS bounded retrigger scheduler");
+}
+
+static void RunConfigurationUpgradeTransactionTests(JsonSerializerOptions serializerOptions)
+{
+    var directory = Path.Combine(Path.GetTempPath(), $"PuppetMasterMigrationTests-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var sourceFixture = Path.Combine(AppContext.BaseDirectory, "TestConfigs", "PuppetMaster_v1.json");
+        var originalBytes = File.ReadAllBytes(sourceFixture);
+        var activePath = Path.Combine(directory, "PuppetMaster.json");
+        File.WriteAllBytes(activePath, originalBytes);
+        var configuration = JsonSerializer.Deserialize<Configuration>(originalBytes, serializerOptions)
+            ?? throw new InvalidOperationException("Could not deserialize transaction test configuration.");
+        var fixedTime = new DateTime(2026, 1, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+
+        var backupPath = ConfigurationUpgradeTransaction.Execute(
+            activePath,
+            configuration.Version,
+            ConfigVersion.CURRENT,
+            () => ConfigurationMigrator.MigrateAndNormalize(configuration),
+            () => File.WriteAllText(activePath, JsonSerializer.Serialize(configuration, serializerOptions)),
+            fixedTime);
+
+        Assert(backupPath != null && File.Exists(backupPath), "v1 upgrade should create a recoverable backup");
+        Assert(File.ReadAllBytes(backupPath!).SequenceEqual(originalBytes),
+            "backup should be byte-for-byte identical to the original v1 file");
+        var activeConfiguration = JsonSerializer.Deserialize<Configuration>(File.ReadAllText(activePath), serializerOptions)
+            ?? throw new InvalidOperationException("Could not deserialize migrated active configuration.");
+        Assert(activeConfiguration.Version == ConfigVersion.CURRENT,
+            "successful transaction should save the migrated v2 configuration as active");
+
+        var collisionPath = Path.Combine(directory, "Collision.json");
+        var collisionOriginal = "{\"Version\":1,\"Marker\":\"original\"}";
+        File.WriteAllText(collisionPath, collisionOriginal);
+        var expectedCollisionBackup = Path.Combine(
+            directory,
+            "Collision.v1.20260102030405006.backup.json");
+        File.WriteAllText(expectedCollisionBackup, "existing backup");
+        var collisionPrepared = false;
+        var collisionSaved = false;
+        AssertThrows<IOException>(() => ConfigurationUpgradeTransaction.Execute(
+                collisionPath,
+                1,
+                ConfigVersion.CURRENT,
+                () => collisionPrepared = true,
+                () => collisionSaved = true,
+                fixedTime),
+            "backup collision should fail closed");
+        Assert(!collisionPrepared && !collisionSaved,
+            "backup failure should prevent both migration preparation and save");
+        Assert(File.ReadAllText(collisionPath) == collisionOriginal,
+            "backup failure should leave the active source file untouched");
+
+        var failurePath = Path.Combine(directory, "MigrationFailure.json");
+        var failureOriginal = "{\"Version\":1,\"Marker\":\"untouched\"}";
+        File.WriteAllText(failurePath, failureOriginal);
+        var failureSaved = false;
+        AssertThrows<InvalidOperationException>(() => ConfigurationUpgradeTransaction.Execute(
+                failurePath,
+                1,
+                ConfigVersion.CURRENT,
+                () => throw new InvalidOperationException("simulated migration failure"),
+                () => failureSaved = true,
+                fixedTime.AddSeconds(1)),
+            "migration failure should propagate");
+        Assert(!failureSaved, "migration failure should prevent save");
+        Assert(File.ReadAllText(failurePath) == failureOriginal,
+            "migration failure should leave the active source file untouched");
+        Assert(Directory.GetFiles(directory, "MigrationFailure.v1.*.backup.json").Length == 1,
+            "migration failure should still leave the original recoverable backup");
+
+        Console.WriteLine("PASS configuration upgrade transaction");
+    }
+    finally
+    {
+        Directory.Delete(directory, recursive: true);
+    }
 }

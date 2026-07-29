@@ -260,15 +260,29 @@ namespace PuppetMaster
             configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             configuration.Initialize(PluginInterface);
 
-            var requiresMigration = configuration.Version < ConfigVersion.CURRENT;
-            if (requiresMigration)
-                BackupConfiguration(configuration.Version);
+            var sourceVersion = configuration.Version;
+            var backupPath = ConfigurationUpgradeTransaction.Execute(
+                PluginInterface.ConfigFile.FullName,
+                sourceVersion,
+                ConfigVersion.CURRENT,
+                PrepareConfigurationForUse,
+                configuration.Save);
+            if (backupPath != null)
+                PluginLog.Information(
+                    "Backed up PuppetMaster configuration v{SourceVersion} to {BackupPath} before migrating to v{TargetVersion}.",
+                    sourceVersion,
+                    backupPath,
+                    ConfigVersion.CURRENT);
+        }
 
-            ConfigurationMigrator.MigrateAndNormalize(configuration);
+        private static void PrepareConfigurationForUse()
+        {
+            var currentConfiguration = configuration!;
+            ConfigurationMigrator.MigrateAndNormalize(currentConfiguration);
 
-            if (configuration.EnabledChannels.Count != CHANNEL_COUNT)
+            if (currentConfiguration.EnabledChannels.Count != CHANNEL_COUNT)
             {
-                configuration.EnabledChannels =
+                currentConfiguration.EnabledChannels =
                 [
                     new() {ChatType = (int)XivChatType.CrossLinkShell1, Name = "CWLS1"},
                     new() {ChatType = (int)XivChatType.CrossLinkShell2, Name = "CWLS2"},
@@ -296,38 +310,25 @@ namespace PuppetMaster
                 ];
             }
 
-            if (configuration.Reactions.Count == 0)
+            if (currentConfiguration.Reactions.Count == 0)
             {
-                configuration.Reactions.Add(Reaction.CreateDefault(
-                    commandWhitelist: configuration.DefaultCommandWhitelist,
-                    commandBlacklist: configuration.DefaultCommandBlacklist,
-                    allowAllCommands: configuration.DefaultAllowAllCommands,
-                    motionOnly: configuration.DefaultMotionOnly,
-                    enabledChannels: configuration.DefaultEnabledChannels));
+                currentConfiguration.Reactions.Add(Reaction.CreateDefault(
+                    commandWhitelist: currentConfiguration.DefaultCommandWhitelist,
+                    commandBlacklist: currentConfiguration.DefaultCommandBlacklist,
+                    allowAllCommands: currentConfiguration.DefaultAllowAllCommands,
+                    motionOnly: currentConfiguration.DefaultMotionOnly,
+                    enabledChannels: currentConfiguration.DefaultEnabledChannels));
             }
 
             InitializeRegex();
 
-            if (configuration.CustomChannels.Count == 0)
+            if (currentConfiguration.CustomChannels.Count == 0)
             {
-                configuration.CustomChannels.Add(new ChannelSetting() { Name = "SystemMessage", ChatType = 57 });
+                currentConfiguration.CustomChannels.Add(new ChannelSetting() { Name = "SystemMessage", ChatType = 57 });
             }
 
             // Always set to false on load
-            configuration.DebugLogTypes = false;
-
-            configuration.Save();
-        }
-
-        private static void BackupConfiguration(int sourceVersion)
-        {
-            var configFile = PluginInterface.ConfigFile;
-            if (!configFile.Exists)
-                return;
-
-            var backupName = $"{Path.GetFileNameWithoutExtension(configFile.Name)}.v{sourceVersion}.{DateTime.UtcNow:yyyyMMddHHmmss}.backup.json";
-            var backupPath = Path.Combine(configFile.DirectoryName!, backupName);
-            File.Copy(configFile.FullName, backupPath, overwrite: false);
+            currentConfiguration.DebugLogTypes = false;
         }
 
         [PluginService]
