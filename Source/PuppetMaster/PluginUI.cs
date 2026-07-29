@@ -15,6 +15,7 @@ namespace PuppetMaster
         private static int CurrentReactionIndex;
         private static int PendingReactionDelete = -1;
         private static bool SelectReactionEditor;
+        private static string ChannelSearch = string.Empty;
 
         private static readonly int[] CommonChannelIndexes = [16, 17, 18, 19, 20, 21, 22];
         private static readonly int[] CrossWorldLinkshellIndexes = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -25,6 +26,11 @@ namespace PuppetMaster
         public ConfigWindow() : base(Name)
         {
             CurrentReactionIndex = Service.configuration!.CurrentReactionEdit;
+            SizeConstraints = new()
+            {
+                MinimumSize = new Vector2(520, 500),
+                MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
+            };
         }
 
         public void Dispose()
@@ -181,20 +187,37 @@ namespace PuppetMaster
         {
             var configuration = Service.configuration!;
             var selectedChannels = configuration.Reactions[reactionIndex].EnabledChannels;
+            var visibleChannels = new List<ChannelSetting>();
+            foreach (var channel in channels)
+            {
+                if (string.IsNullOrWhiteSpace(ChannelSearch) ||
+                    channel.Name.Contains(ChannelSearch, StringComparison.OrdinalIgnoreCase) ||
+                    channel.ChatType.ToString().Contains(ChannelSearch, StringComparison.OrdinalIgnoreCase))
+                {
+                    visibleChannels.Add(channel);
+                }
+            }
+
+            if (visibleChannels.Count == 0)
+                return;
+
             var selectedCount = 0;
 
-            foreach (var channel in channels)
+            foreach (var channel in visibleChannels)
             {
                 if (selectedChannels.Contains(channel.ChatType))
                     selectedCount++;
             }
 
-            if (!ImGui.CollapsingHeader($"{name} ({selectedCount}/{channels.Count})##ChannelGroup{name}"))
+            if (!string.IsNullOrWhiteSpace(ChannelSearch))
+                ImGui.SetNextItemOpen(true, ImGuiCond.Always);
+
+            if (!ImGui.CollapsingHeader($"{name} ({selectedCount}/{visibleChannels.Count})##ChannelGroup{name}"))
                 return;
 
             if (ImGui.SmallButton($"All##ChannelGroupAll{name}"))
             {
-                foreach (var channel in channels)
+                foreach (var channel in visibleChannels)
                 {
                     if (!selectedChannels.Contains(channel.ChatType))
                         selectedChannels.Add(channel.ChatType);
@@ -205,17 +228,17 @@ namespace PuppetMaster
             ImGui.SameLine();
             if (ImGui.SmallButton($"None##ChannelGroupNone{name}"))
             {
-                foreach (var channel in channels)
+                foreach (var channel in visibleChannels)
                     selectedChannels.Remove(channel.ChatType);
                 configuration.Save();
             }
 
             if (ImGui.BeginTable($"##ChannelTable{name}", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
             {
-                for (var index = 0; index < channels.Count; index++)
+                for (var index = 0; index < visibleChannels.Count; index++)
                 {
                     ImGui.TableNextColumn();
-                    var channel = channels[index];
+                    var channel = visibleChannels[index];
                     var enabled = selectedChannels.Contains(channel.ChatType);
                     if (ImGui.Checkbox($"{channel.Name}##GroupedChannel{name}{index}{channel.ChatType}", ref enabled))
                     {
@@ -288,6 +311,30 @@ namespace PuppetMaster
             return channels;
         }
 
+        private static bool IsOfficialChatType(int chatTypeId)
+        {
+            return Array.FindIndex(ChatTypes, type => (int)type == chatTypeId) >= 0;
+        }
+
+        private static bool IsConfiguredCustomChannel(int chatTypeId)
+        {
+            return Service.configuration!.CustomChannels.Exists(channel => channel.ChatType == chatTypeId);
+        }
+
+        private static void AddCustomChannel(int chatTypeId)
+        {
+            var configuration = Service.configuration!;
+            if (IsOfficialChatType(chatTypeId) || IsConfiguredCustomChannel(chatTypeId))
+                return;
+
+            configuration.CustomChannels.Add(new ChannelSetting
+            {
+                ChatType = chatTypeId,
+                Name = $"Custom {chatTypeId}",
+            });
+            configuration.Save();
+        }
+
         private static void DrawChannelSelector(int reactionIndex)
         {
             var configuration = Service.configuration!;
@@ -320,6 +367,17 @@ namespace PuppetMaster
             if (selectedChannels.Count == 0)
                 ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1), "This reaction will not listen to any messages.");
 
+            DrawSelectedChannels(reactionIndex);
+
+            ImGui.SetNextItemWidth(-70);
+            ImGui.InputTextWithHint("##ChannelSearch", "Search channels by name or ID...", ref ChannelSearch, 100);
+            if (!string.IsNullOrEmpty(ChannelSearch))
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Clear##ChannelSearchClear"))
+                    ChannelSearch = string.Empty;
+            }
+
             DrawDefaultChannelGroup("Common", reactionIndex, CommonChannelIndexes);
             DrawDefaultChannelGroup("Cross-world Linkshells", reactionIndex, CrossWorldLinkshellIndexes);
             DrawDefaultChannelGroup("Linkshells", reactionIndex, LinkshellIndexes);
@@ -331,6 +389,57 @@ namespace PuppetMaster
             var customChannels = GetCustomChannels();
             if (customChannels.Count > 0)
                 DrawChannelGroup("Custom", reactionIndex, customChannels);
+        }
+
+        private static void DrawSelectedChannels(int reactionIndex)
+        {
+            var configuration = Service.configuration!;
+            var selectedChannels = configuration.Reactions[reactionIndex].EnabledChannels;
+            if (selectedChannels.Count == 0)
+                return;
+
+            var availableChannels = new Dictionary<int, string>();
+            foreach (var channel in configuration.EnabledChannels)
+                availableChannels.TryAdd(channel.ChatType, channel.Name);
+            foreach (var channel in GetAdvancedChannels())
+                availableChannels.TryAdd(channel.ChatType, channel.Name);
+            foreach (var channel in GetCustomChannels())
+                availableChannels.TryAdd(channel.ChatType, channel.Name);
+
+            ImGui.Spacing();
+            ImGui.TextUnformatted($"Selected Channels ({selectedChannels.Count})");
+            ImGui.Separator();
+
+            if (ImGui.BeginTable("##SelectedChannelTable", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoSavedSettings))
+            {
+                var selectedSnapshot = selectedChannels.ToArray();
+                for (var index = 0; index < selectedSnapshot.Length; index++)
+                {
+                    var chatTypeId = selectedSnapshot[index];
+                    var name = availableChannels.TryGetValue(chatTypeId, out var channelName)
+                        ? channelName
+                        : $"Unknown {chatTypeId}";
+                    var enabled = true;
+
+                    ImGui.TableNextColumn();
+                    if (ImGui.Checkbox($"{name}##SelectedChannel{chatTypeId}_{index}", ref enabled) && !enabled)
+                    {
+                        selectedChannels.Remove(chatTypeId);
+                        configuration.Save();
+                    }
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.TextUnformatted($"Log type ID: {chatTypeId}\nUncheck to remove this channel.");
+                        ImGui.EndTooltip();
+                    }
+                }
+                ImGui.EndTable();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
         }
 
         private static void DrawCustomChannels(int index)
@@ -385,8 +494,6 @@ namespace PuppetMaster
 
         public override void Draw()
         {            
-            ImGui.SetNextWindowSize(new Vector2(480, 640), ImGuiCond.FirstUseEver);
-
             ImGui.BeginTabBar("PuppetMaster Config Tabs");
 
             if (ImGui.BeginTabItem("Reactions"))
@@ -581,6 +688,7 @@ namespace PuppetMaster
                     
                     ImGui.Spacing();
                     ImGui.Separator();
+                    ImGui.Spacing();
                     DrawChannelSelector(CurrentReactionIndex);
                 }
                 
@@ -649,8 +757,18 @@ namespace PuppetMaster
 
                 if (ImGui.BeginChild("##PuppetMasterMessageLog", new Vector2(0, 0), true))
                 {
-                    foreach (var entry in DebugLogBuffer.Snapshot())
-                        ImGui.TextUnformatted(entry);
+                    var entries = DebugLogBuffer.Snapshot();
+                    for (var index = 0; index < entries.Length; index++)
+                    {
+                        var entry = entries[index];
+                        if (!IsOfficialChatType(entry.ChatTypeId) && !IsConfiguredCustomChannel(entry.ChatTypeId))
+                        {
+                            if (ImGui.SmallButton($"Add custom channel##LogCustomChannel{entry.ChatTypeId}_{index}"))
+                                AddCustomChannel(entry.ChatTypeId);
+                            ImGui.SameLine();
+                        }
+                        ImGui.TextUnformatted(entry.Text);
+                    }
                 }
                 ImGui.EndChild();
 
