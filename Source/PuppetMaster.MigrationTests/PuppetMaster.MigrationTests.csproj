@@ -10,6 +10,10 @@
   <ItemGroup>
     <Compile Include="..\PuppetMaster\Configuration.cs" Link="Configuration.cs" />
     <Compile Include="..\PuppetMaster\ConfigurationMigrator.cs" Link="ConfigurationMigrator.cs" />
+    <Compile Include="..\PuppetMaster\ReactionExecutionGate.cs" Link="ReactionExecutionGate.cs" />
+    <Compile Include="..\PuppetMaster\ReactionCommandMatcher.cs" Link="ReactionCommandMatcher.cs" />
+    <Compile Include="..\PuppetMaster\BoundedRetriggerQueue.cs" Link="BoundedRetriggerQueue.cs" />
+    <Compile Include="..\PuppetMaster\BoundedRetriggerScheduler.cs" Link="BoundedRetriggerScheduler.cs" />
     <None Include="..\PuppetMaster\TestConfigs\*.json" Link="TestConfigs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

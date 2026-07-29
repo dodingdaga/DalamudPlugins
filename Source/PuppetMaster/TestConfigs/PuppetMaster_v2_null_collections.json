@@ -1,0 +1,9 @@
+{
+  "Version": 2,
+  "EnabledChannels": null,
+  "CustomChannels": null,
+  "Reactions": null,
+  "DefaultCommandWhitelist": null,
+  "DefaultCommandBlacklist": null,
+  "DefaultEnabledChannels": null
+}

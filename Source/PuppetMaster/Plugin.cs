@@ -27,6 +27,7 @@ namespace PuppetMaster
             windowSystem.AddWindow(configWindow);
 
             // Handlers
+            ChatHandler.Initialize();
             Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = @"Open settings dialog
@@ -49,6 +50,7 @@ namespace PuppetMaster
         {
             windowSystem.RemoveAllWindows();
             Service.ChatGui.ChatMessage -= ChatHandler.OnChatMessage;
+            ChatHandler.Shutdown();
             Service.CommandManager.RemoveHandler(CommandName);
             GC.SuppressFinalize(this);
 

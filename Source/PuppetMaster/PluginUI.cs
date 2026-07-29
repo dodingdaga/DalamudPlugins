@@ -34,6 +34,7 @@ namespace PuppetMaster
         private static string DefaultBlacklistCommandInput = string.Empty;
         private static string DefaultWhitelistCommandSearch = string.Empty;
         private static string DefaultBlacklistCommandSearch = string.Empty;
+        private static readonly Dictionary<ChannelSetting, string> CustomChannelValidationErrors = new();
 
         private static readonly int[] CommonChannelIndexes = [16, 17, 18, 19, 20, 21, 22];
         private static readonly int[] CrossWorldLinkshellIndexes = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -70,12 +71,7 @@ namespace PuppetMaster
             ImGui.TableNextColumn();
             var enabled = reaction.Enabled;
             if (ImGui.Checkbox($"##{reaction.Name}##ReactionCheckBox{index}", ref enabled))
-            {
-                Service.semaphore.WaitOne();
-                reaction.Enabled = enabled;
-                configuration.Save();
-                Service.semaphore.Release();
-            }
+                SetReactionEnabled(reaction, enabled);
 
             ImGui.TableNextColumn();
             ImGui.SetNextItemWidth(-1);
@@ -127,6 +123,22 @@ namespace PuppetMaster
                 ImGui.EndDisabled();
         }
 
+        private static void SetReactionEnabled(Reaction reaction, bool enabled)
+        {
+            Service.semaphore.WaitOne();
+            try
+            {
+                reaction.Enabled = enabled;
+                if (!enabled)
+                    ChatHandler.CancelReaction(reaction);
+                Service.configuration!.Save();
+            }
+            finally
+            {
+                Service.semaphore.Release();
+            }
+        }
+
         private static void DrawReactionTable(IReadOnlyList<int> reactionIndexes, string tableId)
         {
             if (!ImGui.BeginTable(tableId, 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings))
@@ -155,7 +167,11 @@ namespace PuppetMaster
                 foreach (var index in reactionIndexes)
                 {
                     if (index >= 0 && index < configuration.Reactions.Count)
+                    {
                         configuration.Reactions[index].Enabled = enabled;
+                        if (!enabled)
+                            ChatHandler.CancelReaction(configuration.Reactions[index]);
+                    }
                 }
                 configuration.Save();
             }
@@ -268,14 +284,18 @@ namespace PuppetMaster
             ref string search,
             string id,
             bool refreshReactionTest = true,
-            bool showDescriptionWarning = false)
+            bool showDescriptionWarning = false,
+            Reaction? reactionToInvalidate = null)
         {
             var configuration = Service.configuration!;
             ImGui.TextUnformatted($"{label} ({commands.Count})");
-            if (showDescriptionWarning)
-                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), description);
-            else
-                ImGui.TextDisabled(description);
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                if (showDescriptionWarning)
+                    ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), description);
+                else
+                    ImGui.TextDisabled(description);
+            }
 
             if (commands.Count >= 5)
             {
@@ -297,6 +317,8 @@ namespace PuppetMaster
                     if (ImGui.SmallButton($"Remove##{id}{command}"))
                     {
                         commands.Remove(command);
+                        if (reactionToInvalidate != null)
+                            ChatHandler.InvalidateReaction(reactionToInvalidate, true);
                         configuration.Save();
                         if (refreshReactionTest)
                             TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
@@ -326,6 +348,8 @@ namespace PuppetMaster
                     if (!ContainsCommand(commands, command))
                         commands.Add(command);
                     input = string.Empty;
+                    if (reactionToInvalidate != null)
+                        ChatHandler.InvalidateReaction(reactionToInvalidate, true);
                     configuration.Save();
                     if (refreshReactionTest)
                         TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
@@ -335,30 +359,32 @@ namespace PuppetMaster
 
         private static void DrawCommandRulesEditor(Reaction reaction)
         {
-            ImGui.TextDisabled("Blacklist always wins. Emotes are allowed unless blacklisted.");
+            ImGui.TextDisabled("Emotes are allowed by default. Commands listed under Denied commands are blocked.");
 
             DrawCommandListEditor(
                 "Allowed commands",
                 reaction.AllowAllCommands && reaction.CommandWhitelist.Count > 0
                     ? "Ignored while Allow all text commands is enabled."
-                    : "Non-emote commands must appear here.",
+                    : string.Empty,
                 reaction.CommandWhitelist,
                 reaction.CommandBlacklist,
                 ref WhitelistCommandInput,
                 ref WhitelistCommandSearch,
                 "Whitelist",
                 true,
-                reaction.AllowAllCommands && reaction.CommandWhitelist.Count > 0);
+                reaction.AllowAllCommands && reaction.CommandWhitelist.Count > 0,
+                reaction);
 
             ImGui.Spacing();
             DrawCommandListEditor(
                 "Denied commands",
-                "These commands are always blocked, including emotes.",
+                string.Empty,
                 reaction.CommandBlacklist,
                 reaction.CommandWhitelist,
                 ref BlacklistCommandInput,
                 ref BlacklistCommandSearch,
-                "Blacklist");
+                "Blacklist",
+                reactionToInvalidate: reaction);
         }
 
         private static void DrawTriggerEditor(Reaction reaction)
@@ -376,6 +402,7 @@ namespace PuppetMaster
                     reaction.TriggerPhrase = trigger;
                 Service.InitializeRegex(CurrentReactionIndex, true);
                 TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                ChatHandler.InvalidateReaction(reaction, false);
                 Service.configuration.Save();
             }
 
@@ -388,6 +415,7 @@ namespace PuppetMaster
                 reaction.UseRegex = useRegex;
                 Service.InitializeRegex(CurrentReactionIndex, true);
                 TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                ChatHandler.InvalidateReaction(reaction, false);
                 Service.configuration.Save();
             }
 
@@ -400,6 +428,7 @@ namespace PuppetMaster
                     reaction.ReplaceMatch = Service.GetDefaultReplaceMatch();
                     Service.InitializeRegex(CurrentReactionIndex, true);
                     TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    ChatHandler.InvalidateReaction(reaction, false);
                     Service.configuration.Save();
                 }
 
@@ -410,6 +439,7 @@ namespace PuppetMaster
                 {
                     reaction.ReplaceMatch = replacement;
                     TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    ChatHandler.InvalidateReaction(reaction, false);
                     Service.configuration.Save();
                 }
             }
@@ -480,13 +510,11 @@ namespace PuppetMaster
                 else
                 {
                     reaction.AllowAllCommands = false;
+                    ChatHandler.InvalidateReaction(reaction, true);
                     Service.configuration!.Save();
                     TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                 }
             }
-
-            if (reaction.AllowAllCommands)
-                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1), "Any non-blacklisted text command may run for this reaction.");
 
             if (ImGui.BeginPopupModal("Enable Allow All?", ImGuiWindowFlags.AlwaysAutoResize))
             {
@@ -494,7 +522,9 @@ namespace PuppetMaster
                 ImGui.TextUnformatted("Only enable it for trusted triggers and channels.");
                 if (ImGui.Button("Enable") && Service.IsValidReactionIndex(PendingAllowAllReaction))
                 {
-                    Service.configuration!.Reactions[PendingAllowAllReaction].AllowAllCommands = true;
+                    var pendingReaction = Service.configuration!.Reactions[PendingAllowAllReaction];
+                    pendingReaction.AllowAllCommands = true;
+                    ChatHandler.InvalidateReaction(pendingReaction, true);
                     Service.configuration.Save();
                     TextCommand = Service.GetTestInputCommand(PendingAllowAllReaction);
                     PendingAllowAllReaction = -1;
@@ -516,9 +546,15 @@ namespace PuppetMaster
             if (ImGui.Checkbox("Motion only", ref motionOnly))
             {
                 reaction.MotionOnly = motionOnly;
+                ChatHandler.InvalidateReaction(reaction, true);
                 Service.configuration!.Save();
             }
-            ImGui.TextDisabled("Suppresses emote chat text while still playing the animation.");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted("Suppresses emote chat text while still playing the animation.");
+                ImGui.EndTooltip();
+            }
         }
 
         private static void DuplicateReaction(int index)
@@ -532,6 +568,8 @@ namespace PuppetMaster
                 TriggerPhrase = source.TriggerPhrase,
                 AllowSit = source.AllowSit,
                 MotionOnly = source.MotionOnly,
+                CooldownSeconds = source.CooldownSeconds,
+                ExecutionPolicy = source.ExecutionPolicy,
                 AllowAllCommands = source.AllowAllCommands,
                 UseRegex = source.UseRegex,
                 CustomPhrase = source.CustomPhrase,
@@ -566,6 +604,7 @@ namespace PuppetMaster
 
             if (ImGui.Button("Delete") && isValid && configuration.Reactions.Count > 1)
             {
+                ChatHandler.CancelReaction(configuration.Reactions[PendingReactionDelete]);
                 configuration.Reactions.RemoveAt(PendingReactionDelete);
                 var nextIndex = Math.Clamp(PendingReactionDelete, 0, configuration.Reactions.Count - 1);
                 PendingReactionDelete = -1;
@@ -583,7 +622,7 @@ namespace PuppetMaster
             ImGui.EndPopup();
         }
 
-        private static void DrawChannelGroup(string name, List<int> selectedChannels, string idSuffix, IReadOnlyList<ChannelSetting> channels)
+        private static void DrawChannelGroup(string name, List<int> selectedChannels, string idSuffix, IReadOnlyList<ChannelSetting> channels, Action? onChanged = null)
         {
             var configuration = Service.configuration!;
             var visibleChannels = new List<ChannelSetting>();
@@ -621,6 +660,7 @@ namespace PuppetMaster
                     if (!selectedChannels.Contains(channel.ChatType))
                         selectedChannels.Add(channel.ChatType);
                 }
+                onChanged?.Invoke();
                 configuration.Save();
             }
 
@@ -629,6 +669,7 @@ namespace PuppetMaster
             {
                 foreach (var channel in visibleChannels)
                     selectedChannels.Remove(channel.ChatType);
+                onChanged?.Invoke();
                 configuration.Save();
             }
 
@@ -650,6 +691,7 @@ namespace PuppetMaster
                         {
                             selectedChannels.Remove(channel.ChatType);
                         }
+                        onChanged?.Invoke();
                         configuration.Save();
                     }
 
@@ -664,7 +706,7 @@ namespace PuppetMaster
             }
         }
 
-        private static void DrawDefaultChannelGroup(string name, List<int> selectedChannels, string idSuffix, int[] indexes)
+        private static void DrawDefaultChannelGroup(string name, List<int> selectedChannels, string idSuffix, int[] indexes, Action? onChanged = null)
         {
             var defaultChannels = Service.configuration!.EnabledChannels;
             var channels = new List<ChannelSetting>(indexes.Length);
@@ -673,7 +715,7 @@ namespace PuppetMaster
                 if (index < defaultChannels.Count)
                     channels.Add(defaultChannels[index]);
             }
-            DrawChannelGroup(name, selectedChannels, idSuffix, channels);
+            DrawChannelGroup(name, selectedChannels, idSuffix, channels, onChanged);
         }
 
         private static List<ChannelSetting> GetAdvancedChannels()
@@ -704,7 +746,9 @@ namespace PuppetMaster
             var channels = new List<ChannelSetting>();
             foreach (var channel in Service.configuration!.CustomChannels)
             {
-                if (Array.FindIndex(ChatTypes, type => (int)type == channel.ChatType) < 0)
+                if (channel.ChatType >= 0 &&
+                    channel.ChatType <= ushort.MaxValue &&
+                    Array.FindIndex(ChatTypes, type => (int)type == channel.ChatType) < 0)
                     channels.Add(channel);
             }
             return channels;
@@ -737,13 +781,15 @@ namespace PuppetMaster
         private static void DrawChannelSelector(int reactionIndex)
         {
             var configuration = Service.configuration!;
+            var reaction = configuration.Reactions[reactionIndex];
             DrawChannelSelector(
-                configuration.Reactions[reactionIndex].EnabledChannels,
+                reaction.EnabledChannels,
                 $"Reaction{reactionIndex}",
-                "This reaction will not listen to any messages.");
+                "This reaction will not listen to any messages.",
+                () => ChatHandler.InvalidateReaction(reaction, false));
         }
 
-        private static void DrawChannelSelector(List<int> selectedChannels, string idSuffix, string emptyMessage)
+        private static void DrawChannelSelector(List<int> selectedChannels, string idSuffix, string emptyMessage, Action? onChanged = null)
         {
             var configuration = Service.configuration!;
 
@@ -761,6 +807,7 @@ namespace PuppetMaster
                     if (!selectedChannels.Contains(channel.ChatType))
                         selectedChannels.Add(channel.ChatType);
                 }
+                onChanged?.Invoke();
                 configuration.Save();
             }
 
@@ -768,13 +815,14 @@ namespace PuppetMaster
             if (ImGui.SmallButton($"None##NoChannels{idSuffix}"))
             {
                 selectedChannels.Clear();
+                onChanged?.Invoke();
                 configuration.Save();
             }
 
             if (selectedChannels.Count == 0)
                 ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1), emptyMessage);
 
-            DrawSelectedChannels(selectedChannels, idSuffix);
+            DrawSelectedChannels(selectedChannels, idSuffix, onChanged);
 
             ImGui.SetNextItemWidth(-70);
             ImGui.InputTextWithHint($"##ChannelSearch{idSuffix}", "Search channels by name or ID...", ref ChannelSearch, 100);
@@ -785,20 +833,20 @@ namespace PuppetMaster
                     ChannelSearch = string.Empty;
             }
 
-            DrawDefaultChannelGroup("Common", selectedChannels, idSuffix, CommonChannelIndexes);
-            DrawDefaultChannelGroup("Cross-world Linkshells", selectedChannels, idSuffix, CrossWorldLinkshellIndexes);
-            DrawDefaultChannelGroup("Linkshells", selectedChannels, idSuffix, LinkshellIndexes);
+            DrawDefaultChannelGroup("Common", selectedChannels, idSuffix, CommonChannelIndexes, onChanged);
+            DrawDefaultChannelGroup("Cross-world Linkshells", selectedChannels, idSuffix, CrossWorldLinkshellIndexes, onChanged);
+            DrawDefaultChannelGroup("Linkshells", selectedChannels, idSuffix, LinkshellIndexes, onChanged);
 
             var advancedChannels = GetAdvancedChannels();
             if (advancedChannels.Count > 0)
-                DrawChannelGroup("Advanced", selectedChannels, idSuffix, advancedChannels);
+                DrawChannelGroup("Advanced", selectedChannels, idSuffix, advancedChannels, onChanged);
 
             var customChannels = GetCustomChannels();
             if (customChannels.Count > 0)
-                DrawChannelGroup("Custom", selectedChannels, idSuffix, customChannels);
+                DrawChannelGroup("Custom", selectedChannels, idSuffix, customChannels, onChanged);
         }
 
-        private static void DrawSelectedChannels(List<int> selectedChannels, string idSuffix)
+        private static void DrawSelectedChannels(List<int> selectedChannels, string idSuffix, Action? onChanged = null)
         {
             var configuration = Service.configuration!;
             if (selectedChannels.Count == 0)
@@ -831,6 +879,7 @@ namespace PuppetMaster
                     if (ImGui.Checkbox($"{name}##SelectedChannel{idSuffix}{chatTypeId}_{index}", ref enabled) && !enabled)
                     {
                         selectedChannels.Remove(chatTypeId);
+                        onChanged?.Invoke();
                         configuration.Save();
                     }
 
@@ -856,8 +905,34 @@ namespace PuppetMaster
             ImGui.SetNextItemWidth(80);
             if (ImGui.InputInt($"##CustomChannelID##{index}", ref channelID))
             {
-                channel.ChatType = channelID;
-                configuration.Save();
+                var validationError = ValidateCustomChannelId(channel, channelID);
+                if (validationError != null)
+                {
+                    CustomChannelValidationErrors[channel] = validationError;
+                }
+                else
+                {
+                    CustomChannelValidationErrors.Remove(channel);
+                    Service.semaphore.WaitOne();
+                    try
+                    {
+                        var previousChannelId = channel.ChatType;
+                        channel.ChatType = channelID;
+                        foreach (var reaction in configuration.Reactions)
+                        {
+                            if (!reaction.EnabledChannels.Remove(previousChannelId))
+                                continue;
+                            if (!reaction.EnabledChannels.Contains(channelID))
+                                reaction.EnabledChannels.Add(channelID);
+                            ChatHandler.InvalidateReaction(reaction, false);
+                        }
+                        configuration.Save();
+                    }
+                    finally
+                    {
+                        Service.semaphore.Release();
+                    }
+                }
             }
 
             if (ImGui.IsItemHovered())
@@ -887,14 +962,73 @@ namespace PuppetMaster
             if (ImGui.Button($"Delete##CustomChannelDelete#{index}"))
             {
                 Service.semaphore.WaitOne();
-                for (var i = 0; i < configuration.Reactions.Count; i++)
+                try
                 {
-                    configuration.Reactions[i].EnabledChannels.Remove(channelID);
+                    foreach (var reaction in configuration.Reactions)
+                    {
+                        if (reaction.EnabledChannels.Remove(channelID))
+                            ChatHandler.InvalidateReaction(reaction, false);
+                    }
+                    configuration.CustomChannels.RemoveAt(index);
+                    CustomChannelValidationErrors.Remove(channel);
+                    configuration.Save();
                 }
-                configuration.CustomChannels.RemoveAt(index);
-                configuration.Save();
-                Service.semaphore.Release();
+                finally
+                {
+                    Service.semaphore.Release();
+                }
             }
+
+            if (CustomChannelValidationErrors.TryGetValue(channel, out var validationErrorText))
+                ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1f), validationErrorText);
+        }
+
+        private static string? ValidateCustomChannelId(ChannelSetting channel, int channelId)
+        {
+            if (channelId < ushort.MinValue || channelId > ushort.MaxValue)
+                return $"Channel ID must be between {ushort.MinValue} and {ushort.MaxValue}.";
+            if (IsOfficialChatType(channelId))
+                return "Official Dalamud channel IDs do not belong in Custom Channels.";
+            if (Service.configuration!.CustomChannels.Exists(
+                    candidate => !ReferenceEquals(candidate, channel) && candidate.ChatType == channelId))
+                return "Another custom channel already uses this ID.";
+            return null;
+        }
+
+        private static void DrawCustomChannelSettings()
+        {
+            var configuration = Service.configuration!;
+            ImGui.TextUnformatted("Custom Channels");
+            ImGui.Separator();
+            if (ImGui.Button("Add##CustomChannelAdd"))
+            {
+                var channel = new ChannelSetting
+                {
+                    ChatType = -1,
+                    Name = "Custom",
+                    Enabled = false,
+                };
+                configuration.CustomChannels.Add(channel);
+                CustomChannelValidationErrors[channel] = "Enter a valid undocumented channel ID.";
+                configuration.Save();
+            }
+
+            ImGui.SameLine();
+            ImGui.TextDisabled("Add undocumented numeric log types discovered through message logging.");
+            ImGui.Spacing();
+
+            var customChannelCount = 0;
+            for (var index = 0; index < configuration.CustomChannels.Count; ++index)
+            {
+                if (Array.FindIndex(ChatTypes, type => (int)type == configuration.CustomChannels[index].ChatType) < 0)
+                {
+                    customChannelCount++;
+                    DrawCustomChannels(index);
+                }
+            }
+
+            if (customChannelCount == 0)
+                ImGui.TextDisabled("No custom channels configured.");
         }
 
 
@@ -1039,7 +1173,8 @@ namespace PuppetMaster
             {
                 SelectReactionEditor = false;
                 var reactions = Service.configuration!.Reactions;
-                ImGui.SetNextItemWidth(450);
+                ImGui.TextUnformatted("Find reaction");
+                ImGui.SetNextItemWidth(-1);
                 var editorSearchChanged = ImGui.InputTextWithHint(
                     "##ReactionEditorSearch",
                     "Search reactions by name or trigger...",
@@ -1069,7 +1204,8 @@ namespace PuppetMaster
                         SelectReaction(filteredReactionIndexes[0]);
 
                     var filteredSelection = filteredReactionIndexes.IndexOf(CurrentReactionIndex);
-                    ImGui.SetNextItemWidth(450);
+                    ImGui.TextUnformatted("Editing");
+                    ImGui.SetNextItemWidth(-1);
                     if (ImGui.Combo("##ReactEditSelector", ref filteredSelection, [.. filteredReactionNames], filteredReactionNames.Count) &&
                         filteredSelection >= 0 && filteredSelection < filteredReactionIndexes.Count)
                     {
@@ -1083,15 +1219,27 @@ namespace PuppetMaster
                 ImGui.Spacing();
                 ImGui.Separator();
 
-                if (Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit))
+                if (filteredReactionIndexes.Count > 0 &&
+                    Service.IsValidReactionIndex(Service.configuration.CurrentReactionEdit))
                 {
                     var reaction = Service.configuration.Reactions[CurrentReactionIndex];
                     var status = GetReactionStatus(reaction);
-                    ImGui.TextUnformatted(reaction.Name);
+                    var enabled = reaction.Enabled;
+                    if (ImGui.Checkbox("Enabled##ReactionEditorEnabled", ref enabled))
+                        SetReactionEnabled(reaction, enabled);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.TextUnformatted("Disabled reactions do not listen for or execute matching messages.");
+                        ImGui.EndTooltip();
+                    }
                     ImGui.SameLine();
                     ImGui.TextColored(status.Color, status.Label);
                     ImGui.SameLine();
                     ImGui.TextDisabled($"{reaction.EnabledChannels.Count} channels");
+
+                    ImGui.Spacing();
+                    ImGui.TextUnformatted(reaction.Name);
                     ImGui.SameLine();
                     if (Service.configuration.Reactions.Count <= 1)
                         ImGui.BeginDisabled();
@@ -1122,6 +1270,38 @@ namespace PuppetMaster
                             DrawTriggerEditor(reaction);
                         else if (ReactionEditorSection == 1)
                         {
+                            ImGui.TextUnformatted("Execution Behavior");
+                            ImGui.Separator();
+                            var executionPolicy = (int)reaction.ExecutionPolicy;
+                            ImGui.SetNextItemWidth(240);
+                            if (ImGui.Combo(
+                                    "Retriggers while busy",
+                                    ref executionPolicy,
+                                    ["Queue every trigger", "Ignore", "Queue latest trigger"],
+                                    3))
+                            {
+                                reaction.ExecutionPolicy = (ReactionExecutionPolicy)executionPolicy;
+                                ChatHandler.InvalidateReaction(reaction, false);
+                                Service.configuration.Save();
+                            }
+                            ImGui.TextDisabled(reaction.ExecutionPolicy switch
+                            {
+                                ReactionExecutionPolicy.QueueEveryTrigger => "Queues every trigger while running or waiting on queued work (maximum 16 pending).",
+                                ReactionExecutionPolicy.QueueLatestTrigger => "Keeps only the newest trigger while running or waiting on queued work.",
+                                _ => "Discards triggers received while the reaction is running or has queued work.",
+                            });
+                            ImGui.Spacing();
+                            var cooldownSeconds = reaction.CooldownSeconds;
+                            ImGui.SetNextItemWidth(180);
+                            if (ImGui.InputInt("Cooldown (seconds)", ref cooldownSeconds, 1, 10))
+                            {
+                                reaction.CooldownSeconds = Math.Clamp(cooldownSeconds, 0, 86400);
+                                ChatHandler.InvalidateReaction(reaction, false);
+                                Service.configuration.Save();
+                            }
+                            ImGui.TextDisabled("Start-to-start delay. Only one instance of this reaction can run at a time.");
+                            ImGui.Spacing();
+
                             ImGui.TextUnformatted("Text Command Rules");
                             ImGui.Separator();
                             DrawCommandPermissionsEditor(reaction);
@@ -1140,55 +1320,19 @@ namespace PuppetMaster
                 ImGui.EndTabItem();
             }
         
-            if (ImGui.BeginTabItem("Custom Channels"))
-            {
-                var configuration = Service.configuration!;
-                ImGui.SetNextItemWidth(400);
-
-                if (ImGui.Button("Add##CustomChannelAdd"))
-                {
-                    configuration.CustomChannels.Add(new ChannelSetting
-                    {
-                        ChatType = -1,
-                        Name = "Custom",
-                        Enabled = false,
-                    });
-                    configuration.Save();
-                }
-
-                ImGui.SameLine();
-                ImGui.TextDisabled("Only undocumented numeric log types belong here; official Dalamud types are under Advanced.");
-                
-                ImGui.Spacing();
-                ImGui.Spacing();
-                
-                var customChannelCount = 0;
-                for (var index = 0; index < configuration.CustomChannels.Count; ++index)
-                {
-                    if (Array.FindIndex(ChatTypes, type => (int)type == configuration.CustomChannels[index].ChatType) < 0)
-                    {
-                        customChannelCount++;
-                        DrawCustomChannels(index);
-                    }
-                }
-
-                if (customChannelCount == 0)
-                    ImGui.TextDisabled("No custom channels configured.");
-                
-                ImGui.EndTabItem();
-            }
-
             if (ImGui.BeginTabItem("Settings"))
             {
                 var configuration = Service.configuration!;
                 if (ImGui.BeginChild("##SettingsSectionNav", new Vector2(210, 0), true))
                 {
-                    if (ImGui.Selectable("General", SettingsSection == 0))
+                    if (ImGui.Selectable("Notifications", SettingsSection == 0))
                         SettingsSection = 0;
                     if (ImGui.Selectable("Default Command Rules", SettingsSection == 1))
                         SettingsSection = 1;
                     if (ImGui.Selectable("Default Channel Rules", SettingsSection == 2))
                         SettingsSection = 2;
+                    if (ImGui.Selectable("Custom Channels", SettingsSection == 3))
+                        SettingsSection = 3;
                 }
                 ImGui.EndChild();
                 ImGui.SameLine();
@@ -1197,7 +1341,7 @@ namespace PuppetMaster
                 {
                     if (SettingsSection == 0)
                     {
-                        ImGui.TextUnformatted("General");
+                        ImGui.TextUnformatted("Notifications");
                         ImGui.Separator();
                         var showReactionNotifications = configuration.ShowReactionNotifications;
                         if (ImGui.Checkbox("Show reaction progress notifications", ref showReactionNotifications))
@@ -1206,6 +1350,14 @@ namespace PuppetMaster
                             configuration.Save();
                         }
                         ImGui.TextDisabled("Shows command progress and a Cancel button while a reaction is running.");
+
+                        var showSuppressedReactionNotifications = configuration.ShowSuppressedReactionNotifications;
+                        if (ImGui.Checkbox("Notify when a reaction is suppressed", ref showSuppressedReactionNotifications))
+                        {
+                            configuration.ShowSuppressedReactionNotifications = showSuppressedReactionNotifications;
+                            configuration.Save();
+                        }
+                        ImGui.TextDisabled("Shows rate-limited notices for retriggers blocked by single-flight or cooldown.");
                     }
                     else if (SettingsSection == 1)
                     {
@@ -1251,7 +1403,7 @@ namespace PuppetMaster
                             "DefaultBlacklist",
                             false);
                     }
-                    else
+                    else if (SettingsSection == 2)
                     {
                         ImGui.TextUnformatted("Default Channel Rules");
                         ImGui.Separator();
@@ -1261,6 +1413,10 @@ namespace PuppetMaster
                             configuration.DefaultEnabledChannels,
                             "Defaults",
                             "New reactions will start without any enabled channels.");
+                    }
+                    else
+                    {
+                        DrawCustomChannelSettings();
                     }
                 }
                 ImGui.EndChild();
@@ -1285,7 +1441,24 @@ namespace PuppetMaster
 
                 ImGui.SameLine();
                 if (ImGui.Button("Clear"))
+                {
                     DebugLogBuffer.Clear();
+                    ChatHandler.ResetDroppedMessageCount();
+                }
+
+                ImGui.SameLine();
+                var droppedMessageCount = ChatHandler.DroppedMessageCount;
+                var droppedRetriggerCount = ChatHandler.DroppedRetriggerCount;
+                if (droppedMessageCount > 0 || droppedRetriggerCount > 0)
+                {
+                    ImGui.TextColored(
+                        new Vector4(1f, 0.65f, 0.2f, 1f),
+                        $"Queue overload: {droppedMessageCount} message(s), {droppedRetriggerCount} retrigger(s) dropped");
+                }
+                else
+                {
+                    ImGui.TextDisabled("Queue overload: none");
+                }
 
                 ImGui.Separator();
 

@@ -51,7 +51,11 @@ namespace PuppetMaster
         public static void SetEnabledAll(bool enabled = true)
         {
             for (var i = 0; i < configuration?.Reactions.Count; i++)
+            {
                 configuration.Reactions[i].Enabled = enabled;
+                if (!enabled)
+                    ChatHandler.CancelReaction(configuration.Reactions[i]);
+            }
             configuration?.Save();
 #if DEBUG
             if (configuration != null && configuration.Reactions.Count > 0)
@@ -69,6 +73,8 @@ namespace PuppetMaster
                 if (configuration.Reactions[i].Name.Equals(name, sc))
                 {
                     configuration.Reactions[i].Enabled = enabled;
+                    if (!enabled)
+                        ChatHandler.CancelReaction(configuration.Reactions[i]);
 #if DEBUG
                     found++;
 #endif
@@ -106,10 +112,30 @@ namespace PuppetMaster
 
         public static void InitializeRegex(int index, bool reload = false)
         {
-            if (configuration!.Reactions[index].UseRegex && (reload || configuration.Reactions[index].CustomRx == null))
-                try { configuration.Reactions[index].CustomRx = new Regex(configuration.Reactions[index].CustomPhrase); } catch (Exception) { }
-            else if ( reload || configuration.Reactions[index].Rx == null)
-                try { configuration.Reactions[index].Rx = new Regex(GetDefaultRegex(index)); } catch (Exception) { }
+            var reaction = configuration!.Reactions[index];
+            if (!reload && (reaction.UseRegex ? reaction.CustomRx != null : reaction.Rx != null))
+                return;
+
+            reaction.Rx = null;
+            reaction.CustomRx = null;
+            try
+            {
+                if (reaction.UseRegex)
+                {
+                    if (!reaction.CustomPhrase.IsNullOrWhitespace())
+                        reaction.CustomRx = new Regex(reaction.CustomPhrase, RegexOptions.None, TimeSpan.FromMilliseconds(250));
+                }
+                else
+                {
+                    var pattern = GetDefaultRegex(index);
+                    if (!pattern.IsNullOrWhitespace())
+                        reaction.Rx = new Regex(pattern, RegexOptions.None, TimeSpan.FromMilliseconds(250));
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Invalid patterns remain null so they cannot silently reuse stale compiled regexes.
+            }
         }
 
         public struct ParsedTextCommand
@@ -197,18 +223,21 @@ namespace PuppetMaster
             */
 #endif
 
-            var matches = usingRegex ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput) : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
-            if (matches.Count != 0)
+            try
             {
-                result.Args = matches[0].ToString();
-                try
+                var matches = usingRegex
+                    ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput)
+                    : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
+                if (matches.Count != 0)
                 {
+                    result.Args = matches[0].ToString();
                     result.Main = usingRegex ?
-                    configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, configuration.Reactions[index].ReplaceMatch) :
-                    configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch());
+                        configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, configuration.Reactions[index].ReplaceMatch) :
+                        configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch());
                 }
-                catch (Exception) { }
             }
+            catch (RegexMatchTimeoutException) { }
+            catch (ArgumentException) { }
             result.Main = FormatCommand(result.Main).ToString();
             return result;
         }
@@ -317,5 +346,8 @@ namespace PuppetMaster
 
         [PluginService]
         public static INotificationManager NotificationManager { get; private set; } = null!;
+
+        [PluginService]
+        public static IPluginLog PluginLog { get; private set; } = null!;
     }
 }

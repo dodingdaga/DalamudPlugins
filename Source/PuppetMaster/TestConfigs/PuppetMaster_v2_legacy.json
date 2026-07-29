@@ -1,11 +1,17 @@
 {
   "Version": 2,
   "ShowReactionNotifications": false,
+  "ShowSuppressedReactionNotifications": true,
   "DefaultCommandWhitelist": ["/echo", "/ECHO"],
   "DefaultCommandBlacklist": ["/sit", "/SIT", "/groundsit"],
   "DefaultAllowAllCommands": true,
   "DefaultMotionOnly": false,
   "DefaultEnabledChannels": [10, 10, 14],
+  "CustomChannels": [
+    { "ChatType": 77, "Name": "First" },
+    { "ChatType": 77, "Name": "Duplicate" },
+    { "ChatType": -1, "Name": "Invalid" }
+  ],
   "Reactions": [
     {
       "Enabled": true,
@@ -14,6 +20,8 @@
       "AllowSit": false,
       "MotionOnly": true,
       "AllowAllCommands": true,
+      "CooldownSeconds": -5,
+      "ExecutionPolicy": 999,
       "UseRegex": false,
       "EnabledChannels": [10],
       "CommandWhitelist": ["/echo", "/ECHO"],
