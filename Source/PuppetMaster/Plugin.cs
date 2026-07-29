@@ -32,7 +32,10 @@ namespace PuppetMaster
             {
                 HelpMessage = @"Open settings dialog
 /puppetmaster on|off - enable or disable all reactions
-/puppetmaster on|off <ReactionName> - enable or disable reactions by name"
+/puppetmaster on|off <ReactionName> - enable or disable reactions by name
+/puppetmaster logging on|off - enable or disable message logging
+/puppetmaster logging clear - clear captured logs and overload counters
+/puppetmaster logging save - save captured logs to a timestamped file"
             });
             Service.ChatGui.ChatMessage += ChatHandler.OnChatMessage;
             Service.PluginInterface.UiBuilder.Draw += DrawUI;
@@ -82,6 +85,48 @@ namespace PuppetMaster
                 {
                     enableReactions(false);
                 }
+                else if (ptc.Main.Equals("/logging"))
+                {
+                    HandleLoggingCommand(ptc.Args);
+                }
+            }
+        }
+
+        private static void HandleLoggingCommand(string args)
+        {
+            switch (args.Trim().ToLowerInvariant())
+            {
+                case "on":
+                    Service.configuration!.DebugLogTypes = true;
+                    Service.ChatGui.Print("[PuppetMaster] Message logging enabled for this session.");
+                    break;
+                case "off":
+                    Service.configuration!.DebugLogTypes = false;
+                    Service.ChatGui.Print("[PuppetMaster] Message logging disabled.");
+                    break;
+                case "clear":
+                    var clearedCount = DebugLogBuffer.Snapshot().Length;
+                    DebugLogBuffer.Clear();
+                    ChatHandler.ResetDroppedMessageCount();
+                    Service.ChatGui.Print($"[PuppetMaster] Cleared {clearedCount} captured log entr{(clearedCount == 1 ? "y" : "ies")} and overload counters.");
+                    break;
+                case "save":
+                    try
+                    {
+                        var export = Service.SaveDebugLogs();
+                        Service.ChatGui.Print($"[PuppetMaster] Saved {export.EntryCount} log entries to: {export.Path}");
+                    }
+                    catch (Exception exception)
+                    {
+                        Service.PluginLog.Error(exception, "Failed to save PuppetMaster message logs from command.");
+                        Service.ChatGui.PrintError($"[PuppetMaster] Failed to save logs: {exception.Message}");
+                    }
+                    break;
+                default:
+                    Service.ChatGui.Print(
+                        $"[PuppetMaster] Logging is {(Service.configuration!.DebugLogTypes ? "enabled" : "disabled")}. " +
+                        "Use /puppetmaster logging on|off|clear|save.");
+                    break;
             }
         }
 

@@ -20,10 +20,23 @@ namespace PuppetMaster
         public static Configuration? configuration;
         public static Lumina.Excel.ExcelSheet<Emote>? emoteCommands;
         public static HashSet<String> Emotes = [];
+        public static string LastDebugLogExportPath { get; private set; } = string.Empty;
 
         public static Semaphore semaphore = new(initialCount:1, maximumCount:1);
 
         private const uint CHANNEL_COUNT = 23;
+
+        public static (string Path, int EntryCount) SaveDebugLogs()
+        {
+            var entries = DebugLogBuffer.Snapshot();
+            if (entries.Length == 0)
+                throw new InvalidOperationException("There are no captured log entries to save.");
+            var configDirectory = PluginInterface.ConfigFile.DirectoryName ?? AppContext.BaseDirectory;
+            LastDebugLogExportPath = DebugLogBuffer.SaveSnapshot(
+                Path.Combine(configDirectory, "PuppetMasterLogs"),
+                entries);
+            return (LastDebugLogExportPath, entries.Length);
+        }
 
         public static void InitializeEmotes()
         {

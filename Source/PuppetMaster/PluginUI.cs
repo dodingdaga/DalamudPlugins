@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using Dalamud.Interface.ImGuiNotification;
 
 namespace PuppetMaster
 {
@@ -1426,6 +1427,7 @@ namespace PuppetMaster
             if (ImGui.BeginTabItem("Logs"))
             {
                 var configuration = Service.configuration!;
+                var entries = DebugLogBuffer.Snapshot();
                 var debugLogTypes = configuration.DebugLogTypes;
                 if (ImGui.Checkbox("Enable message logging", ref debugLogTypes))
                 {
@@ -1438,6 +1440,37 @@ namespace PuppetMaster
                     ImGui.TextUnformatted("Capture game messages in this window with their log type ID, type name, and sender.");
                     ImGui.EndTooltip();
                 }
+
+                ImGui.SameLine();
+                if (entries.Length == 0)
+                    ImGui.BeginDisabled();
+                if (ImGui.Button("Save to file"))
+                {
+                    try
+                    {
+                        var export = Service.SaveDebugLogs();
+                        Service.NotificationManager.AddNotification(new Notification
+                        {
+                            Title = "Puppet Master",
+                            Content = $"Saved {export.EntryCount} log entries.\n{export.Path}",
+                            Type = NotificationType.Success,
+                            InitialDuration = TimeSpan.FromSeconds(6),
+                        });
+                    }
+                    catch (Exception exception)
+                    {
+                        Service.PluginLog.Error(exception, "Failed to save PuppetMaster message logs.");
+                        Service.NotificationManager.AddNotification(new Notification
+                        {
+                            Title = "Puppet Master",
+                            Content = $"Failed to save logs.\n{exception.Message}",
+                            Type = NotificationType.Error,
+                            InitialDuration = TimeSpan.FromSeconds(6),
+                        });
+                    }
+                }
+                if (entries.Length == 0)
+                    ImGui.EndDisabled();
 
                 ImGui.SameLine();
                 if (ImGui.Button("Clear"))
@@ -1462,9 +1495,21 @@ namespace PuppetMaster
 
                 ImGui.Separator();
 
+                if (!string.IsNullOrWhiteSpace(Service.LastDebugLogExportPath))
+                {
+                    ImGui.TextDisabled("Last saved file:");
+                    ImGui.SameLine();
+                    ImGui.TextUnformatted(Service.LastDebugLogExportPath);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.TextUnformatted(Service.LastDebugLogExportPath);
+                        ImGui.EndTooltip();
+                    }
+                }
+
                 if (ImGui.BeginChild("##PuppetMasterMessageLog", new Vector2(0, 0), true))
                 {
-                    var entries = DebugLogBuffer.Snapshot();
                     for (var index = 0; index < entries.Length; index++)
                     {
                         var entry = entries[index];
