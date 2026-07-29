@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Copycat", "Copycat\Copycat.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{DFBC15F2-3A5F-4437-B309-73F848FD428F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PuppetMaster.MigrationTests", "PuppetMaster.MigrationTests\PuppetMaster.MigrationTests.csproj", "{A93B519C-5804-41E7-A33E-91B9673E121C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.Release|x64.Build.0 = Release|x64
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.ReleaseForms|x64.ActiveCfg = ReleaseForms|x64
 		{DFBC15F2-3A5F-4437-B309-73F848FD428F}.ReleaseForms|x64.Build.0 = ReleaseForms|x64
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.Debug|x64.Build.0 = Debug|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.DebugForms|x64.ActiveCfg = Debug|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.DebugForms|x64.Build.0 = Debug|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.Release|x64.ActiveCfg = Release|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.Release|x64.Build.0 = Release|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.ReleaseForms|x64.ActiveCfg = Release|Any CPU
+		{A93B519C-5804-41E7-A33E-91B9673E121C}.ReleaseForms|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,9 +7,16 @@ using System.Text.RegularExpressions;
 
 namespace PuppetMaster
 {
+    public enum ReactionExecutionPolicy
+    {
+        QueueEveryTrigger,
+        IgnoreWhileRunning,
+        QueueLatestTrigger,
+    }
+
     public class ConfigVersion
     {
-        public const int CURRENT = 1;
+        public const int CURRENT = 2;
     }
 
     public class ChannelSetting
@@ -25,8 +32,13 @@ namespace PuppetMaster
         public bool Enabled { get; set; } = false;
         public string Name { get; set; } = string.Empty;
         public string TriggerPhrase { get; set; } = string.Empty;
-        public bool AllowSit { get; set; } = false;
+        // Legacy field. False is normalized into default blacklist entries on load.
+        public bool AllowSit { get; set; } = true;
         public bool MotionOnly { get; set; } = true;
+        public int CooldownSeconds { get; set; } = 0;
+        // QueueEveryTrigger preserves the behavior of configurations created before execution policies existed.
+        public ReactionExecutionPolicy ExecutionPolicy { get; set; } = ReactionExecutionPolicy.QueueEveryTrigger;
+        // Legacy v1 field. Retained for config compatibility; command execution no longer uses it.
         public bool AllowAllCommands { get; set; } = false;
         public bool UseRegex { get; set; } = false;
         public string CustomPhrase { get; set; } = string.Empty;
@@ -37,6 +49,28 @@ namespace PuppetMaster
         public List<string> CommandBlacklist { get; set; } = [];
         public Regex? Rx;
         public Regex? CustomRx;
+
+        public static Reaction CreateDefault(
+            string name = "Reaction",
+            IEnumerable<string>? commandWhitelist = null,
+            IEnumerable<string>? commandBlacklist = null,
+            bool allowAllCommands = false,
+            bool motionOnly = true,
+            IEnumerable<int>? enabledChannels = null)
+        {
+            return new Reaction
+            {
+                Name = name,
+                AllowAllCommands = allowAllCommands,
+                MotionOnly = motionOnly,
+                ExecutionPolicy = ReactionExecutionPolicy.IgnoreWhileRunning,
+                EnabledChannels = enabledChannels != null ? new List<int>(enabledChannels) : [],
+                CommandWhitelist = commandWhitelist != null ? new List<string>(commandWhitelist) : [],
+                CommandBlacklist = commandBlacklist != null
+                    ? new List<string>(commandBlacklist)
+                    : ["/sit", "/groundsit", "/lounge"],
+            };
+        }
     }
 
     [Serializable]
@@ -60,6 +94,13 @@ namespace PuppetMaster
         public List<Reaction> Reactions { get; set; } = [];
         public int CurrentReactionEdit = -1;
         public bool DebugLogTypes { get; set; } = false;
+        public bool ShowReactionNotifications { get; set; } = true;
+        public bool ShowSuppressedReactionNotifications { get; set; } = false;
+        public List<string> DefaultCommandWhitelist { get; set; } = [];
+        public List<string> DefaultCommandBlacklist { get; set; } = ["/sit", "/groundsit", "/lounge"];
+        public bool DefaultAllowAllCommands { get; set; } = false;
+        public bool DefaultMotionOnly { get; set; } = true;
+        public List<int> DefaultEnabledChannels { get; set; } = [];
         public int MaxRegexLength { get; set; } = 1000;
 
         [NonSerialized]
