@@ -3,6 +3,7 @@ using Dalamud.Game.Text;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace PuppetMaster
@@ -15,12 +16,16 @@ namespace PuppetMaster
         private static int CurrentReactionIndex;
         private static int PendingReactionDelete = -1;
         private static bool SelectReactionEditor;
+        private static int ReactionEditorSection;
+        private static string ReactionEditorSearch = string.Empty;
         private static string ChannelSearch = string.Empty;
         private static string ReactionSearch = string.Empty;
         private static int PendingReactionDuplicate = -1;
         private static int PendingAllowAllReaction = -1;
         private static string WhitelistCommandInput = string.Empty;
         private static string BlacklistCommandInput = string.Empty;
+        private static string WhitelistCommandSearch = string.Empty;
+        private static string BlacklistCommandSearch = string.Empty;
 
         private static readonly int[] CommonChannelIndexes = [16, 17, 18, 19, 20, 21, 22];
         private static readonly int[] CrossWorldLinkshellIndexes = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -114,6 +119,53 @@ namespace PuppetMaster
                 ImGui.EndDisabled();
         }
 
+        private static void DrawReactionTable(IReadOnlyList<int> reactionIndexes, string tableId)
+        {
+            if (!ImGui.BeginTable(tableId, 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings))
+                return;
+
+            ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 35);
+            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+            ImGui.TableSetupColumn("Trigger", ImGuiTableColumnFlags.WidthStretch, 1.5f);
+            ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthFixed, 65);
+            ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 90);
+            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 155);
+            ImGui.TableHeadersRow();
+
+            foreach (var index in reactionIndexes)
+                DrawReaction(index);
+
+            ImGui.EndTable();
+        }
+
+        private static void SetReactionGroupEnabled(IReadOnlyList<int> reactionIndexes, bool enabled)
+        {
+            var configuration = Service.configuration!;
+            Service.semaphore.WaitOne();
+            try
+            {
+                foreach (var index in reactionIndexes)
+                {
+                    if (index >= 0 && index < configuration.Reactions.Count)
+                        configuration.Reactions[index].Enabled = enabled;
+                }
+                configuration.Save();
+            }
+            finally
+            {
+                Service.semaphore.Release();
+            }
+        }
+
+        private static bool ReactionMatchesSearch(Reaction reaction)
+        {
+            if (string.IsNullOrWhiteSpace(ReactionSearch))
+                return true;
+            var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
+            return reaction.Name.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase) ||
+                   trigger.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void DrawReactionStatus(Reaction reaction)
         {
             var status = GetReactionStatus(reaction);
@@ -171,24 +223,42 @@ namespace PuppetMaster
             List<string> commands,
             List<string> oppositeCommands,
             ref string input,
+            ref string search,
             string id)
         {
             var configuration = Service.configuration!;
-            ImGui.TextUnformatted(label);
+            ImGui.TextUnformatted($"{label} ({commands.Count})");
             ImGui.TextDisabled(description);
 
-            var snapshot = commands.ToArray();
-            foreach (var command in snapshot)
+            if (commands.Count >= 5)
             {
-                ImGui.TextUnformatted(command);
-                ImGui.SameLine();
-                if (ImGui.SmallButton($"Remove##{id}{command}"))
-                {
-                    commands.Remove(command);
-                    configuration.Save();
-                    TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-                }
+                ImGui.SetNextItemWidth(-1);
+                ImGui.InputTextWithHint($"##{id}Search", "Search commands...", ref search, 100);
             }
+
+            var searchText = search;
+            var visibleCommands = commands
+                .Where(command => string.IsNullOrWhiteSpace(searchText) || command.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            var listHeight = Math.Min(140f, Math.Max(48f, visibleCommands.Length * ImGui.GetTextLineHeightWithSpacing() + 12f));
+            if (ImGui.BeginChild($"##{id}List", new Vector2(0, listHeight), true))
+            {
+                foreach (var command in visibleCommands)
+                {
+                    ImGui.TextUnformatted(command);
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton($"Remove##{id}{command}"))
+                    {
+                        commands.Remove(command);
+                        configuration.Save();
+                        TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
+                    }
+                }
+
+                if (visibleCommands.Length == 0)
+                    ImGui.TextDisabled(commands.Count == 0 ? "No commands added." : "No matching commands.");
+            }
+            ImGui.EndChild();
 
             ImGui.SetNextItemWidth(-55);
             var addFromEnter = ImGui.InputTextWithHint(
@@ -226,6 +296,7 @@ namespace PuppetMaster
                 reaction.CommandWhitelist,
                 reaction.CommandBlacklist,
                 ref WhitelistCommandInput,
+                ref WhitelistCommandSearch,
                 "Whitelist");
 
             ImGui.Spacing();
@@ -235,15 +306,13 @@ namespace PuppetMaster
                 reaction.CommandBlacklist,
                 reaction.CommandWhitelist,
                 ref BlacklistCommandInput,
+                ref BlacklistCommandSearch,
                 "Blacklist");
         }
 
         private static void DrawTriggerEditor(Reaction reaction)
         {
             TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
-            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
-            if (!ImGui.CollapsingHeader("Trigger & Testing##ReactionEditorTrigger"))
-                return;
 
             var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
             ImGui.TextUnformatted(reaction.UseRegex ? "Regex pattern" : "Trigger phrase");
@@ -343,10 +412,6 @@ namespace PuppetMaster
 
         private static void DrawCommandPermissionsEditor(Reaction reaction)
         {
-            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
-            if (!ImGui.CollapsingHeader("Command Rules##ReactionEditorCommands"))
-                return;
-
             var allowAllCommands = reaction.AllowAllCommands;
             if (ImGui.Checkbox("Allow all text commands", ref allowAllCommands))
             {
@@ -392,10 +457,6 @@ namespace PuppetMaster
 
         private static void DrawEmoteBehaviorEditor(Reaction reaction)
         {
-            ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
-            if (!ImGui.CollapsingHeader("Emote Behavior##ReactionEditorEmotes"))
-                return;
-
             var motionOnly = reaction.MotionOnly;
             if (ImGui.Checkbox("Motion only", ref motionOnly))
             {
@@ -825,32 +886,70 @@ namespace PuppetMaster
                 ImGui.SetNextItemWidth(-1);
                 ImGui.InputTextWithHint("##ReactionSearch", "Search reactions by name or trigger...", ref ReactionSearch, 100);
 
-                var visibleCount = 0;
-                if (ImGui.BeginTable("##ReactionTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings))
+                var groups = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+                for (var index = 0; index < configuration.Reactions.Count; index++)
                 {
-                    ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 35);
-                    ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-                    ImGui.TableSetupColumn("Trigger", ImGuiTableColumnFlags.WidthStretch, 1.5f);
-                    ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthFixed, 65);
-                    ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 90);
-                    ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 155);
-                    ImGui.TableHeadersRow();
+                    var name = configuration.Reactions[index].Name;
+                    if (!groups.TryGetValue(name, out var indexes))
+                    {
+                        indexes = [];
+                        groups.Add(name, indexes);
+                    }
+                    indexes.Add(index);
+                }
 
-                    for (var index = 0; index < configuration.Reactions.Count; index++)
+                var visibleCount = 0;
+                var individualIndexes = new List<int>();
+                foreach (var group in groups)
+                {
+                    if (group.Value.Count == 1)
+                    {
+                        if (ReactionMatchesSearch(configuration.Reactions[group.Value[0]]))
+                            individualIndexes.Add(group.Value[0]);
+                        continue;
+                    }
+
+                    var visibleGroupIndexes = new List<int>();
+                    var enabledInGroup = 0;
+                    foreach (var index in group.Value)
                     {
                         var reaction = configuration.Reactions[index];
-                        var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
-                        if (!string.IsNullOrWhiteSpace(ReactionSearch) &&
-                            !reaction.Name.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase) &&
-                            !trigger.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-
-                        visibleCount++;
-                        DrawReaction(index);
+                        if (reaction.Enabled)
+                            enabledInGroup++;
+                        if (ReactionMatchesSearch(reaction))
+                            visibleGroupIndexes.Add(index);
                     }
-                    ImGui.EndTable();
+
+                    if (visibleGroupIndexes.Count == 0)
+                        continue;
+
+                    visibleCount += visibleGroupIndexes.Count;
+                    if (!string.IsNullOrWhiteSpace(ReactionSearch))
+                        ImGui.SetNextItemOpen(true, ImGuiCond.Always);
+                    var displayName = string.IsNullOrWhiteSpace(group.Key) ? "Unnamed" : group.Key;
+                    var expanded = ImGui.CollapsingHeader(
+                        $"{displayName} — {group.Value.Count} reactions, {enabledInGroup} enabled##ReactionGroup{group.Value[0]}");
+                    if (expanded)
+                    {
+                        ImGui.Indent();
+                        ImGui.TextDisabled($"Group actions ({group.Value.Count} reactions)");
+                        ImGui.SameLine();
+                        if (ImGui.SmallButton($"Enable all##ReactionGroupEnable{group.Value[0]}"))
+                            SetReactionGroupEnabled(group.Value, true);
+                        ImGui.SameLine();
+                        if (ImGui.SmallButton($"Disable all##ReactionGroupDisable{group.Value[0]}"))
+                            SetReactionGroupEnabled(group.Value, false);
+                        DrawReactionTable(visibleGroupIndexes, $"##ReactionGroupTable{group.Value[0]}");
+                        ImGui.Unindent();
+                    }
+                    ImGui.Spacing();
+                }
+
+                visibleCount += individualIndexes.Count;
+                if (individualIndexes.Count > 0)
+                {
+                    ImGui.TextUnformatted("Individual reactions");
+                    DrawReactionTable(individualIndexes, "##IndividualReactionTable");
                 }
 
                 if (visibleCount == 0)
@@ -881,15 +980,46 @@ namespace PuppetMaster
             if (ImGui.BeginTabItem("Reaction Editor", editorFlags))
             {
                 SelectReactionEditor = false;
-                var reactionNames =  new List<string>{ };
-                foreach (var reaction in Service.configuration!.Reactions)
-                    reactionNames.Add(reaction.Name);
-
+                var reactions = Service.configuration!.Reactions;
                 ImGui.SetNextItemWidth(450);
-                if (ImGui.Combo("##ReactEditSelector", ref CurrentReactionIndex, [.. reactionNames], reactionNames.Count))
+                var editorSearchChanged = ImGui.InputTextWithHint(
+                    "##ReactionEditorSearch",
+                    "Search reactions by name or trigger...",
+                    ref ReactionEditorSearch,
+                    100);
+
+                var filteredReactionIndexes = new List<int>();
+                var filteredReactionNames = new List<string>();
+                for (var index = 0; index < reactions.Count; index++)
                 {
-                    SelectReaction(CurrentReactionIndex);
+                    var candidate = reactions[index];
+                    var trigger = candidate.UseRegex ? candidate.CustomPhrase : candidate.TriggerPhrase;
+                    if (!string.IsNullOrWhiteSpace(ReactionEditorSearch) &&
+                        !candidate.Name.Contains(ReactionEditorSearch, StringComparison.OrdinalIgnoreCase) &&
+                        !trigger.Contains(ReactionEditorSearch, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    filteredReactionIndexes.Add(index);
+                    filteredReactionNames.Add(string.IsNullOrWhiteSpace(trigger)
+                        ? candidate.Name
+                        : $"{candidate.Name} — {trigger}");
                 }
+
+                if (filteredReactionIndexes.Count > 0)
+                {
+                    if (editorSearchChanged && !filteredReactionIndexes.Contains(CurrentReactionIndex))
+                        SelectReaction(filteredReactionIndexes[0]);
+
+                    var filteredSelection = filteredReactionIndexes.IndexOf(CurrentReactionIndex);
+                    ImGui.SetNextItemWidth(450);
+                    if (ImGui.Combo("##ReactEditSelector", ref filteredSelection, [.. filteredReactionNames], filteredReactionNames.Count) &&
+                        filteredSelection >= 0 && filteredSelection < filteredReactionIndexes.Count)
+                    {
+                        SelectReaction(filteredReactionIndexes[filteredSelection]);
+                    }
+                }
+                else
+                    ImGui.TextDisabled("No reactions match the current search.");
 
                 ImGui.Spacing();
                 ImGui.Spacing();
@@ -905,13 +1035,33 @@ namespace PuppetMaster
                     ImGui.SameLine();
                     ImGui.TextDisabled($"{reaction.EnabledChannels.Count} channels");
 
-                    DrawTriggerEditor(reaction);
-                    DrawCommandPermissionsEditor(reaction);
-                    DrawEmoteBehaviorEditor(reaction);
+                    ImGui.Spacing();
+                    if (ImGui.BeginChild("##ReactionEditorSectionNav", new Vector2(165, 0), true))
+                    {
+                        if (ImGui.Selectable("Trigger & Test", ReactionEditorSection == 0))
+                            ReactionEditorSection = 0;
+                        if (ImGui.Selectable("Commands", ReactionEditorSection == 1))
+                            ReactionEditorSection = 1;
+                        if (ImGui.Selectable("Emotes", ReactionEditorSection == 2))
+                            ReactionEditorSection = 2;
+                        if (ImGui.Selectable($"Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannelSection", ReactionEditorSection == 3))
+                            ReactionEditorSection = 3;
+                    }
+                    ImGui.EndChild();
+                    ImGui.SameLine();
 
-                    ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
-                    if (ImGui.CollapsingHeader($"Enabled Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannels"))
-                        DrawChannelSelector(CurrentReactionIndex);
+                    if (ImGui.BeginChild("##ReactionEditorSectionContent", new Vector2(0, 0), true))
+                    {
+                        if (ReactionEditorSection == 0)
+                            DrawTriggerEditor(reaction);
+                        else if (ReactionEditorSection == 1)
+                            DrawCommandPermissionsEditor(reaction);
+                        else if (ReactionEditorSection == 2)
+                            DrawEmoteBehaviorEditor(reaction);
+                        else
+                            DrawChannelSelector(CurrentReactionIndex);
+                    }
+                    ImGui.EndChild();
                 }
                 
                 ImGui.EndTabItem();
