@@ -443,19 +443,45 @@ static void RunConfigurationUpgradeTransactionTests(JsonSerializerOptions serial
         var failureOriginal = "{\"Version\":1,\"Marker\":\"untouched\"}";
         File.WriteAllText(failurePath, failureOriginal);
         var failureSaved = false;
+        string? reportedFailureBackup = null;
         AssertThrows<InvalidOperationException>(() => ConfigurationUpgradeTransaction.Execute(
                 failurePath,
                 1,
                 ConfigVersion.CURRENT,
                 () => throw new InvalidOperationException("simulated migration failure"),
                 () => failureSaved = true,
-                fixedTime.AddSeconds(1)),
+                fixedTime.AddSeconds(1),
+                backupCreated: path => reportedFailureBackup = path),
             "migration failure should propagate");
         Assert(!failureSaved, "migration failure should prevent save");
         Assert(File.ReadAllText(failurePath) == failureOriginal,
             "migration failure should leave the active source file untouched");
         Assert(Directory.GetFiles(directory, "MigrationFailure.v1.*.backup.json").Length == 1,
             "migration failure should still leave the original recoverable backup");
+        Assert(reportedFailureBackup != null && File.Exists(reportedFailureBackup),
+            "backup path should be reported before migration preparation begins");
+
+        var saveFailurePath = Path.Combine(directory, "SaveFailure.json");
+        var saveFailureOriginal = "{\"Version\":1,\"Marker\":\"save-failure-source\"}";
+        File.WriteAllText(saveFailurePath, saveFailureOriginal);
+        var savePreparationCompleted = false;
+        string? reportedSaveFailureBackup = null;
+        AssertThrows<IOException>(() => ConfigurationUpgradeTransaction.Execute(
+                saveFailurePath,
+                1,
+                ConfigVersion.CURRENT,
+                () => savePreparationCompleted = true,
+                () => throw new IOException("simulated save failure"),
+                fixedTime.AddSeconds(2),
+                backupCreated: path => reportedSaveFailureBackup = path),
+            "save failure should propagate");
+        Assert(savePreparationCompleted, "save failure test should complete migration preparation first");
+        Assert(File.ReadAllText(saveFailurePath) == saveFailureOriginal,
+            "save failure before write should leave the active source untouched");
+        Assert(reportedSaveFailureBackup != null && File.Exists(reportedSaveFailureBackup),
+            "save failure should preserve and report the recoverable backup");
+        Assert(File.ReadAllText(reportedSaveFailureBackup!) == saveFailureOriginal,
+            "save-failure backup should remain byte-for-byte identical to the original source");
 
         Console.WriteLine("PASS configuration upgrade transaction");
     }

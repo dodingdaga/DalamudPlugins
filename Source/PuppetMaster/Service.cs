@@ -261,18 +261,18 @@ namespace PuppetMaster
             configuration.Initialize(PluginInterface);
 
             var sourceVersion = configuration.Version;
-            var backupPath = ConfigurationUpgradeTransaction.Execute(
+            ConfigurationUpgradeTransaction.Execute(
                 PluginInterface.ConfigFile.FullName,
                 sourceVersion,
                 ConfigVersion.CURRENT,
                 PrepareConfigurationForUse,
-                configuration.Save);
-            if (backupPath != null)
-                PluginLog.Information(
-                    "Backed up PuppetMaster configuration v{SourceVersion} to {BackupPath} before migrating to v{TargetVersion}.",
-                    sourceVersion,
-                    backupPath,
-                    ConfigVersion.CURRENT);
+                configuration.Save,
+                backupCreated: backupPath =>
+                    PluginLog.Information(
+                        "Backed up PuppetMaster configuration v{SourceVersion} to {BackupPath} before migrating to v{TargetVersion}.",
+                        sourceVersion,
+                        backupPath,
+                        ConfigVersion.CURRENT));
         }
 
         private static void PrepareConfigurationForUse()

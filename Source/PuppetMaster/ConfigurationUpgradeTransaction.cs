@@ -11,7 +11,8 @@ internal static class ConfigurationUpgradeTransaction
         int targetVersion,
         Action prepareAndValidate,
         Action save,
-        DateTime? utcNow = null)
+        DateTime? utcNow = null,
+        Action<string>? backupCreated = null)
     {
         string? backupPath = null;
         if (sourceVersion < targetVersion && File.Exists(configPath))
@@ -20,6 +21,7 @@ internal static class ConfigurationUpgradeTransaction
             var backupName = $"{Path.GetFileNameWithoutExtension(configPath)}.v{sourceVersion}.{timestamp}.backup.json";
             backupPath = Path.Combine(Path.GetDirectoryName(configPath)!, backupName);
             File.Copy(configPath, backupPath, overwrite: false);
+            backupCreated?.Invoke(backupPath);
         }
 
         prepareAndValidate();
