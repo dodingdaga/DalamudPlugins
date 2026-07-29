@@ -129,9 +129,7 @@ namespace PuppetMaster
             Service.semaphore.WaitOne();
             try
             {
-                reaction.Enabled = enabled;
-                if (!enabled)
-                    ChatHandler.CancelReaction(reaction);
+                PluginUiLogic.SetReactionEnabled(reaction, enabled, ChatHandler.CancelReaction);
                 Service.configuration!.Save();
             }
             finally
@@ -165,15 +163,11 @@ namespace PuppetMaster
             Service.semaphore.WaitOne();
             try
             {
-                foreach (var index in reactionIndexes)
-                {
-                    if (index >= 0 && index < configuration.Reactions.Count)
-                    {
-                        configuration.Reactions[index].Enabled = enabled;
-                        if (!enabled)
-                            ChatHandler.CancelReaction(configuration.Reactions[index]);
-                    }
-                }
+                PluginUiLogic.SetReactionGroupEnabled(
+                    configuration.Reactions,
+                    reactionIndexes,
+                    enabled,
+                    ChatHandler.CancelReaction);
                 configuration.Save();
             }
             finally
@@ -184,11 +178,7 @@ namespace PuppetMaster
 
         private static bool ReactionMatchesSearch(Reaction reaction)
         {
-            if (string.IsNullOrWhiteSpace(ReactionSearch))
-                return true;
-            var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
-            return reaction.Name.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase) ||
-                   trigger.Contains(ReactionSearch, StringComparison.OrdinalIgnoreCase);
+            return PluginUiLogic.MatchesSearch(reaction, ReactionSearch);
         }
 
         private static void DrawReactionStatus(Reaction reaction)
@@ -199,20 +189,14 @@ namespace PuppetMaster
 
         private static (string Label, Vector4 Color, bool NeedsAttention) GetReactionStatus(Reaction reaction)
         {
-            if (!reaction.Enabled)
-                return ("Disabled", new Vector4(0.65f, 0.65f, 0.65f, 1), false);
-
-            var hasTrigger = reaction.UseRegex
-                ? !string.IsNullOrWhiteSpace(reaction.CustomPhrase) && reaction.CustomRx != null
-                : !string.IsNullOrWhiteSpace(reaction.TriggerPhrase) && reaction.Rx != null;
-
-            if (!hasTrigger)
-                return ("Invalid trigger", new Vector4(1f, 0.35f, 0.35f, 1), true);
-            if (reaction.EnabledChannels.Count == 0)
-                return ("No channels", new Vector4(1f, 0.75f, 0.2f, 1), true);
-            if (reaction.AllowAllCommands)
-                return ("Unsafe", new Vector4(1f, 0.55f, 0.2f, 1), true);
-            return ("Ready", new Vector4(0.35f, 0.9f, 0.45f, 1), false);
+            return PluginUiLogic.GetStatus(reaction) switch
+            {
+                ReactionUiStatus.Disabled => ("Disabled", new Vector4(0.65f, 0.65f, 0.65f, 1), false),
+                ReactionUiStatus.InvalidTrigger => ("Invalid trigger", new Vector4(1f, 0.35f, 0.35f, 1), true),
+                ReactionUiStatus.NoChannels => ("No channels", new Vector4(1f, 0.75f, 0.2f, 1), true),
+                ReactionUiStatus.Unsafe => ("Unsafe", new Vector4(1f, 0.55f, 0.2f, 1), true),
+                _ => ("Ready", new Vector4(0.35f, 0.9f, 0.45f, 1), false),
+            };
         }
 
         private static void SelectReaction(int index)
@@ -234,18 +218,11 @@ namespace PuppetMaster
                 ? Enum.GetName(typeof(XivChatType), (ushort)entry.ChatTypeId)
                 : null;
             var channelName = officialChannelName ?? $"channel {entry.ChatTypeId}";
-            var reaction = Reaction.CreateDefault(
-                $"Reaction from {channelName}",
-                configuration.DefaultCommandWhitelist,
-                configuration.DefaultCommandBlacklist,
-                configuration.DefaultAllowAllCommands,
-                configuration.DefaultMotionOnly,
-                configuration.DefaultEnabledChannels);
-            reaction.EnabledChannels.Clear();
-            reaction.UseRegex = true;
-            reaction.CustomPhrase = $"^{Regex.Escape(entry.TriggerText)}$";
-            reaction.TestInput = entry.TriggerText;
-            reaction.EnabledChannels.Add(entry.ChatTypeId);
+            var reaction = PluginUiLogic.CreateReactionFromLog(
+                entry.ChatTypeId,
+                entry.TriggerText,
+                channelName,
+                configuration);
 
             Service.semaphore.WaitOne();
             try
@@ -259,21 +236,6 @@ namespace PuppetMaster
 
             SelectReaction(configuration.Reactions.Count - 1);
             SelectReactionEditor = true;
-        }
-
-        private static string NormalizeCommand(string input)
-        {
-            input = input.Trim();
-            if (input.Length == 0)
-                return string.Empty;
-            if (!input.StartsWith('/'))
-                input = $"/{input}";
-            return Service.FormatCommand(input).Main;
-        }
-
-        private static bool ContainsCommand(List<string> commands, string command)
-        {
-            return commands.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
         }
 
         private static void DrawCommandListEditor(
@@ -342,12 +304,8 @@ namespace PuppetMaster
             var addFromButton = ImGui.SmallButton($"Add##{id}Add");
             if (addFromEnter || addFromButton)
             {
-                var command = NormalizeCommand(input);
-                if (command.Length > 0)
+                if (PluginUiLogic.AddCommandRule(commands, oppositeCommands, input))
                 {
-                    oppositeCommands.RemoveAll(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
-                    if (!ContainsCommand(commands, command))
-                        commands.Add(command);
                     input = string.Empty;
                     if (reactionToInvalidate != null)
                         ChatHandler.InvalidateReaction(reactionToInvalidate, true);
@@ -413,7 +371,7 @@ namespace PuppetMaster
             var useRegex = reaction.UseRegex;
             if (ImGui.Checkbox("Use Regex", ref useRegex))
             {
-                reaction.UseRegex = useRegex;
+                PluginUiLogic.SetRegexMode(reaction, useRegex);
                 Service.InitializeRegex(CurrentReactionIndex, true);
                 TextCommand = Service.GetTestInputCommand(CurrentReactionIndex);
                 ChatHandler.InvalidateReaction(reaction, false);
@@ -562,24 +520,7 @@ namespace PuppetMaster
         {
             var configuration = Service.configuration!;
             var source = configuration.Reactions[index];
-            var copy = new Reaction
-            {
-                Enabled = false,
-                Name = $"{source.Name} Copy",
-                TriggerPhrase = source.TriggerPhrase,
-                AllowSit = source.AllowSit,
-                MotionOnly = source.MotionOnly,
-                CooldownSeconds = source.CooldownSeconds,
-                ExecutionPolicy = source.ExecutionPolicy,
-                AllowAllCommands = source.AllowAllCommands,
-                UseRegex = source.UseRegex,
-                CustomPhrase = source.CustomPhrase,
-                ReplaceMatch = source.ReplaceMatch,
-                TestInput = source.TestInput,
-                EnabledChannels = new List<int>(source.EnabledChannels),
-                CommandWhitelist = new List<string>(source.CommandWhitelist),
-                CommandBlacklist = new List<string>(source.CommandBlacklist),
-            };
+            var copy = PluginUiLogic.CloneReaction(source);
 
             configuration.Reactions.Insert(index + 1, copy);
             SelectReaction(index + 1);
@@ -605,12 +546,16 @@ namespace PuppetMaster
 
             if (ImGui.Button("Delete") && isValid && configuration.Reactions.Count > 1)
             {
-                ChatHandler.CancelReaction(configuration.Reactions[PendingReactionDelete]);
-                configuration.Reactions.RemoveAt(PendingReactionDelete);
-                var nextIndex = Math.Clamp(PendingReactionDelete, 0, configuration.Reactions.Count - 1);
-                PendingReactionDelete = -1;
-                SelectReaction(nextIndex);
-                ImGui.CloseCurrentPopup();
+                if (PluginUiLogic.TryDeleteReaction(
+                        configuration.Reactions,
+                        PendingReactionDelete,
+                        out var nextIndex,
+                        ChatHandler.CancelReaction))
+                {
+                    PendingReactionDelete = -1;
+                    SelectReaction(nextIndex);
+                    ImGui.CloseCurrentPopup();
+                }
             }
 
             ImGui.SameLine();
@@ -683,15 +628,7 @@ namespace PuppetMaster
                     var enabled = selectedChannels.Contains(channel.ChatType);
                     if (ImGui.Checkbox($"{channel.Name}##GroupedChannel{idSuffix}{name}{index}{channel.ChatType}", ref enabled))
                     {
-                        if (enabled)
-                        {
-                            if (!selectedChannels.Contains(channel.ChatType))
-                                selectedChannels.Add(channel.ChatType);
-                        }
-                        else
-                        {
-                            selectedChannels.Remove(channel.ChatType);
-                        }
+                        PluginUiLogic.SetChannel(selectedChannels, channel.ChatType, enabled);
                         onChanged?.Invoke();
                         configuration.Save();
                     }
@@ -986,14 +923,11 @@ namespace PuppetMaster
 
         private static string? ValidateCustomChannelId(ChannelSetting channel, int channelId)
         {
-            if (channelId < ushort.MinValue || channelId > ushort.MaxValue)
-                return $"Channel ID must be between {ushort.MinValue} and {ushort.MaxValue}.";
-            if (IsOfficialChatType(channelId))
-                return "Official Dalamud channel IDs do not belong in Custom Channels.";
-            if (Service.configuration!.CustomChannels.Exists(
-                    candidate => !ReferenceEquals(candidate, channel) && candidate.ChatType == channelId))
-                return "Another custom channel already uses this ID.";
-            return null;
+            return PluginUiLogic.ValidateCustomChannelId(
+                channel,
+                channelId,
+                Service.configuration!.CustomChannels,
+                IsOfficialChatType);
         }
 
         private static void DrawCustomChannelSettings()
@@ -1079,17 +1013,7 @@ namespace PuppetMaster
                 ImGui.SetNextItemWidth(-1);
                 ImGui.InputTextWithHint("##ReactionSearch", "Search reactions by name or trigger...", ref ReactionSearch, 100);
 
-                var groups = new Dictionary<string, List<int>>(StringComparer.Ordinal);
-                for (var index = 0; index < configuration.Reactions.Count; index++)
-                {
-                    var name = configuration.Reactions[index].Name;
-                    if (!groups.TryGetValue(name, out var indexes))
-                    {
-                        indexes = [];
-                        groups.Add(name, indexes);
-                    }
-                    indexes.Add(index);
-                }
+                var groups = PluginUiLogic.GroupReactionIndexes(configuration.Reactions);
 
                 var visibleCount = 0;
                 var individualIndexes = new List<int>();
@@ -1182,18 +1106,12 @@ namespace PuppetMaster
                     ref ReactionEditorSearch,
                     100);
 
-                var filteredReactionIndexes = new List<int>();
+                var filteredReactionIndexes = PluginUiLogic.FilterReactionIndexes(reactions, ReactionEditorSearch);
                 var filteredReactionNames = new List<string>();
-                for (var index = 0; index < reactions.Count; index++)
+                foreach (var index in filteredReactionIndexes)
                 {
                     var candidate = reactions[index];
                     var trigger = candidate.UseRegex ? candidate.CustomPhrase : candidate.TriggerPhrase;
-                    if (!string.IsNullOrWhiteSpace(ReactionEditorSearch) &&
-                        !candidate.Name.Contains(ReactionEditorSearch, StringComparison.OrdinalIgnoreCase) &&
-                        !trigger.Contains(ReactionEditorSearch, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    filteredReactionIndexes.Add(index);
                     filteredReactionNames.Add(string.IsNullOrWhiteSpace(trigger)
                         ? candidate.Name
                         : $"{candidate.Name} — {trigger}");
@@ -1296,7 +1214,7 @@ namespace PuppetMaster
                             ImGui.SetNextItemWidth(180);
                             if (ImGui.InputInt("Cooldown (seconds)", ref cooldownSeconds, 1, 10))
                             {
-                                reaction.CooldownSeconds = Math.Clamp(cooldownSeconds, 0, 86400);
+                                reaction.CooldownSeconds = PluginUiLogic.ClampCooldown(cooldownSeconds);
                                 ChatHandler.InvalidateReaction(reaction, false);
                                 Service.configuration.Save();
                             }

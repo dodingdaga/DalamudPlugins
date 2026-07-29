@@ -96,6 +96,8 @@ AssertThrows<InvalidOperationException>(() => ConfigurationMigrator.MigrateAndNo
 
 RunExecutionGateTests();
 RunReactionCommandMatcherTests();
+RunPluginUiLogicTests();
+RunDebugLogBufferTests();
 RunRetriggerQueueTests();
 RunRetriggerSchedulerTests();
 RunConfigurationUpgradeTransactionTests(options);
@@ -199,6 +201,25 @@ static void RunExecutionGateTests()
 
 static void RunReactionCommandMatcherTests()
 {
+    var toggledReaction = new Reaction
+    {
+        UseRegex = false,
+        Rx = new Regex(@"(?i)\b(?:please do)\s+(?:\((.*?)\)|(\w+))"),
+    };
+    Assert(ReactionCommandMatcher.SelectPattern(toggledReaction) == toggledReaction.Rx,
+        "simple mode should select the generated simple pattern");
+    toggledReaction.UseRegex = true;
+    Assert(ReactionCommandMatcher.SelectPattern(toggledReaction) == null,
+        "switching to regex mode with an empty custom pattern should not fall back to the simple pattern");
+    var emptyPatternStatus = ReactionCommandMatcher.TryGenerateCommand(
+        ReactionCommandMatcher.SelectPattern(toggledReaction),
+        "please do wave",
+        "/$1$2",
+        out var emptyPatternCommand,
+        out var emptyPatternError);
+    Assert(emptyPatternStatus == ReactionMatchStatus.NoMatch && emptyPatternCommand.Length == 0 && emptyPatternError == null,
+        "an empty active regex should produce no preview instead of throwing");
+
     var lookbehindPattern = new Regex(
         @"(?<=Boss uses )(Fire)",
         RegexOptions.None,
@@ -225,6 +246,174 @@ static void RunReactionCommandMatcherTests()
     Assert(!string.IsNullOrWhiteSpace(invalidError), "malformed replacement should explain the error");
 
     Console.WriteLine("PASS reaction command matcher");
+}
+
+static void RunPluginUiLogicTests()
+{
+    var reaction = new Reaction
+    {
+        Name = "Morning Wave",
+        TriggerPhrase = "please do",
+        TestInput = "please do wave",
+        Rx = new Regex(@"(?i)\b(?:please do)\s+(?:\((.*?)\)|(\w+))"),
+        EnabledChannels = [10],
+        CommandWhitelist = ["/echo"],
+        CommandBlacklist = ["/logout"],
+    };
+
+    Assert(PluginUiLogic.MatchesSearch(reaction, "morning"), "reaction search should match names");
+    Assert(PluginUiLogic.MatchesSearch(reaction, "PLEASE"), "reaction search should match simple triggers case-insensitively");
+    Assert(!PluginUiLogic.MatchesSearch(reaction, "missing"), "reaction search should reject unrelated text");
+    reaction.UseRegex = true;
+    reaction.CustomPhrase = "^hello$";
+    Assert(PluginUiLogic.MatchesSearch(reaction, "HELLO"), "reaction search should use the active regex trigger");
+    reaction.UseRegex = false;
+    var groupedReactions = new List<Reaction>
+    {
+        reaction,
+        new() { Name = "Morning Wave", TriggerPhrase = "second" },
+        new() { Name = "Individual", TriggerPhrase = "solo" },
+    };
+    var groups = PluginUiLogic.GroupReactionIndexes(groupedReactions);
+    Assert(groups["Morning Wave"].SequenceEqual([0, 1]) && groups["Individual"].SequenceEqual([2]),
+        "reaction grouping should preserve indexes and exact-name groups");
+    Assert(PluginUiLogic.FilterReactionIndexes(groupedReactions, "second").SequenceEqual([1]),
+        "reaction editor filtering should return only matching indexes");
+    var cancelled = new List<Reaction>();
+    PluginUiLogic.SetReactionEnabled(groupedReactions[0], false, cancelled.Add);
+    Assert(!groupedReactions[0].Enabled && cancelled.SequenceEqual([groupedReactions[0]]),
+        "disabling from the editor should cancel that reaction");
+    PluginUiLogic.SetReactionGroupEnabled(groupedReactions, [0, 1, -1, 99], true, cancelled.Add);
+    Assert(groupedReactions[0].Enabled && groupedReactions[1].Enabled,
+        "group enable should update every valid group member and ignore stale indexes");
+    PluginUiLogic.SetReactionGroupEnabled(groupedReactions, [0, 1], false, cancelled.Add);
+    Assert(!groupedReactions[0].Enabled && !groupedReactions[1].Enabled && cancelled.Count == 3,
+        "group disable should cancel every affected reaction");
+    Assert(PluginUiLogic.TryDeleteReaction(groupedReactions, 1, out var nextIndex, cancelled.Add) && nextIndex == 1,
+        "deleting a reaction should select the next valid index");
+    Assert(groupedReactions.Count == 2 && groupedReactions[1].Name == "Individual",
+        "deleting should remove only the selected reaction");
+    var singleReaction = new List<Reaction> { new() };
+    Assert(!PluginUiLogic.TryDeleteReaction(singleReaction, 0, out _, cancelled.Add),
+        "the UI should preserve its final reaction");
+
+    Assert(PluginUiLogic.GetStatus(reaction) == ReactionUiStatus.Disabled, "disabled reactions should report disabled");
+    reaction.Enabled = true;
+    reaction.Rx = null;
+    Assert(PluginUiLogic.GetStatus(reaction) == ReactionUiStatus.InvalidTrigger, "missing compiled triggers should report invalid");
+    reaction.Rx = new Regex("please do");
+    reaction.EnabledChannels.Clear();
+    Assert(PluginUiLogic.GetStatus(reaction) == ReactionUiStatus.NoChannels, "reactions without channels should request attention");
+    reaction.EnabledChannels.Add(10);
+    reaction.AllowAllCommands = true;
+    Assert(PluginUiLogic.GetStatus(reaction) == ReactionUiStatus.Unsafe, "allow-all reactions should report unsafe");
+    reaction.AllowAllCommands = false;
+    Assert(PluginUiLogic.GetStatus(reaction) == ReactionUiStatus.Ready, "complete reactions should report ready");
+
+    PluginUiLogic.SetRegexMode(reaction, true);
+    Assert(reaction.UseRegex && ReactionCommandMatcher.SelectPattern(reaction) == null,
+        "regex toggle should select only the empty custom pattern without throwing");
+    PluginUiLogic.SetRegexMode(reaction, false);
+    Assert(ReactionCommandMatcher.SelectPattern(reaction) == reaction.Rx,
+        "switching back should restore the simple preview pattern");
+    Assert(PluginUiLogic.ClampCooldown(-1) == 0 && PluginUiLogic.ClampCooldown(90000) == 86400,
+        "cooldown editor values should stay within UI bounds");
+
+    Assert(PluginUiLogic.NormalizeCommand(" echo hello ") == "/echo", "command input should normalize to its lowercase command name");
+    Assert(PluginUiLogic.NormalizeCommand("/AC Vercure [t]") == "/ac", "command normalization should ignore arguments and casing");
+    Assert(PluginUiLogic.NormalizeCommand("  ") == string.Empty, "blank command input should be ignored");
+    var allowed = new List<string> { "/echo" };
+    var denied = new List<string> { "/logout", "/AC" };
+    Assert(PluginUiLogic.AddCommandRule(allowed, denied, "/ac Vercure [t]"), "adding an allowed rule should succeed");
+    Assert(allowed.SequenceEqual(["/echo", "/ac"]) && denied.SequenceEqual(["/logout"]),
+        "adding a rule should remove its case-insensitive opposite entry");
+    Assert(!PluginUiLogic.AddCommandRule(allowed, denied, "AC another argument"), "duplicate command rules should not be added");
+
+    reaction.UseRegex = true;
+    reaction.CustomPhrase = "^hello$";
+    reaction.CustomRx = new Regex("^hello$");
+    reaction.ExecutionPolicy = ReactionExecutionPolicy.QueueLatestTrigger;
+    var copy = PluginUiLogic.CloneReaction(reaction);
+    Assert(!copy.Enabled && copy.Name == "Morning Wave Copy", "duplicated reactions should start disabled with a copy name");
+    Assert(copy.UseRegex && copy.CustomPhrase == reaction.CustomPhrase && copy.ExecutionPolicy == reaction.ExecutionPolicy,
+        "duplicate should preserve editor behavior");
+    copy.EnabledChannels.Add(99);
+    copy.CommandWhitelist.Add("/wait");
+    Assert(!reaction.EnabledChannels.Contains(99) && !reaction.CommandWhitelist.Contains("/wait"),
+        "duplicate collections should not share mutable state");
+
+    var configuration = new Configuration
+    {
+        DefaultCommandWhitelist = ["/echo"],
+        DefaultCommandBlacklist = ["/logout"],
+        DefaultAllowAllCommands = false,
+        DefaultMotionOnly = false,
+        DefaultEnabledChannels = [10, 14],
+    };
+    var fromLog = PluginUiLogic.CreateReactionFromLog(57, "good morning!", "Party", configuration);
+    Assert(!fromLog.Enabled && fromLog.UseRegex, "log-created reactions should be disabled regex reactions");
+    Assert(fromLog.CustomPhrase == "^good\\ morning!$" && fromLog.TestInput == "good morning!",
+        "log-created reactions should exactly escape and preload the captured text");
+    Assert(fromLog.EnabledChannels.SequenceEqual([57]), "log-created reactions should use only their source channel");
+    Assert(fromLog.CommandWhitelist.SequenceEqual(["/echo"]) && fromLog.CommandBlacklist.SequenceEqual(["/logout"]) && !fromLog.MotionOnly,
+        "log-created reactions should copy the current command defaults");
+
+    var channels = new List<int> { 10, 10 };
+    PluginUiLogic.SetChannel(channels, 10, false);
+    Assert(channels.Count == 0, "disabling a channel should remove duplicate stale selections");
+    PluginUiLogic.SetChannel(channels, 14, true);
+    PluginUiLogic.SetChannel(channels, 14, true);
+    Assert(channels.SequenceEqual([14]), "enabling a channel should not add duplicates");
+
+    var custom = new ChannelSetting { ChatType = 77, Name = "Custom" };
+    var duplicate = new ChannelSetting { ChatType = 88, Name = "Other" };
+    var customChannels = new List<ChannelSetting> { custom, duplicate };
+    Assert(PluginUiLogic.ValidateCustomChannelId(custom, -1, customChannels, _ => false) != null,
+        "negative custom channel IDs should be rejected");
+    Assert(PluginUiLogic.ValidateCustomChannelId(custom, 70000, customChannels, _ => false) != null,
+        "oversized custom channel IDs should be rejected");
+    Assert(PluginUiLogic.ValidateCustomChannelId(custom, 10, customChannels, id => id == 10) != null,
+        "official channel IDs should be rejected as custom");
+    Assert(PluginUiLogic.ValidateCustomChannelId(custom, 88, customChannels, _ => false) != null,
+        "duplicate custom channel IDs should be rejected");
+    Assert(PluginUiLogic.ValidateCustomChannelId(custom, 99, customChannels, _ => false) == null,
+        "unique undocumented channel IDs should be accepted");
+
+    configuration.ShowReactionNotifications = false;
+    configuration.ShowSuppressedReactionNotifications = true;
+    Assert(!configuration.ShowReactionNotifications && configuration.ShowSuppressedReactionNotifications,
+        "notification UI settings should remain independent");
+
+    Console.WriteLine("PASS plugin UI logic");
+}
+
+static void RunDebugLogBufferTests()
+{
+    DebugLogBuffer.Clear();
+    for (var index = 0; index < 505; index++)
+        DebugLogBuffer.Add(index, $"display {index}", $"trigger {index}");
+    var entries = DebugLogBuffer.Snapshot();
+    Assert(entries.Length == 500, "logs UI should retain at most 500 entries");
+    Assert(entries[0].ChatTypeId == 5 && entries[^1].ChatTypeId == 504,
+        "logs UI should discard the oldest entries when full");
+
+    var directory = Path.Combine(Path.GetTempPath(), $"PuppetMaster-LogTests-{Guid.NewGuid():N}");
+    try
+    {
+        var exportPath = DebugLogBuffer.SaveSnapshot(directory, entries[..2]);
+        var exported = File.ReadAllLines(exportPath);
+        Assert(exported.Any(line => line == "# Entries: 2"), "log export should include its entry count");
+        Assert(exported[^2] == "display 5" && exported[^1] == "display 6",
+            "log export should preserve visible log order and text");
+    }
+    finally
+    {
+        if (Directory.Exists(directory))
+            Directory.Delete(directory, recursive: true);
+        DebugLogBuffer.Clear();
+    }
+    Assert(DebugLogBuffer.Snapshot().Length == 0, "clearing logs should empty the UI buffer");
+    Console.WriteLine("PASS debug log UI");
 }
 
 static void RunRetriggerQueueTests()

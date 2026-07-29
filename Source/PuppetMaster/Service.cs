@@ -219,13 +219,10 @@ namespace PuppetMaster
             if (!IsValidReactionIndex(index) ||
                 configuration!.Reactions[index].TestInput.IsNullOrWhitespace()) return result;
 
-            var usingRegex = (configuration.Reactions[index].UseRegex && configuration.Reactions[index].CustomRx != null);
-
-            if ((usingRegex && Service.configuration.Reactions[index].CustomRx!.ToString().IsNullOrWhitespace()) ||
-                (!usingRegex && Service.configuration.Reactions[index].Rx!.ToString().IsNullOrWhitespace()))
-            {
+            var reaction = configuration.Reactions[index];
+            var pattern = ReactionCommandMatcher.SelectPattern(reaction);
+            if (pattern == null)
                 return result;
-            }
 
 #if DEBUG
             /*
@@ -238,15 +235,13 @@ namespace PuppetMaster
 
             try
             {
-                var matches = usingRegex
-                    ? configuration.Reactions[index].CustomRx!.Matches(configuration.Reactions[index].TestInput)
-                    : configuration.Reactions[index].Rx!.Matches(configuration.Reactions[index].TestInput);
+                var matches = pattern.Matches(reaction.TestInput);
                 if (matches.Count != 0)
                 {
                     result.Args = matches[0].ToString();
-                    result.Main = usingRegex ?
-                        configuration.Reactions[index].CustomRx!.Replace(matches[0].Value, configuration.Reactions[index].ReplaceMatch) :
-                        configuration.Reactions[index].Rx!.Replace(matches[0].Value, GetDefaultReplaceMatch());
+                    result.Main = pattern.Replace(
+                        matches[0].Value,
+                        reaction.UseRegex ? reaction.ReplaceMatch : GetDefaultReplaceMatch());
                 }
             }
             catch (RegexMatchTimeoutException) { }

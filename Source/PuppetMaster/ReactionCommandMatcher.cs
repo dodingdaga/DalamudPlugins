@@ -13,8 +13,13 @@ internal enum ReactionMatchStatus
 
 internal static class ReactionCommandMatcher
 {
+    public static Regex? SelectPattern(Reaction reaction)
+    {
+        return reaction.UseRegex ? reaction.CustomRx : reaction.Rx;
+    }
+
     public static ReactionMatchStatus TryGenerateCommand(
-        Regex pattern,
+        Regex? pattern,
         string message,
         string replacement,
         out string command,
@@ -22,6 +27,8 @@ internal static class ReactionCommandMatcher
     {
         command = string.Empty;
         error = null;
+        if (pattern == null)
+            return ReactionMatchStatus.NoMatch;
         try
         {
             var match = pattern.Match(message);
