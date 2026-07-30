@@ -12,6 +12,7 @@ namespace PuppetMaster
         QueueEveryTrigger,
         IgnoreWhileRunning,
         QueueLatestTrigger,
+        RestartImmediately,
     }
 
     public enum ReactionNotificationSetting

@@ -109,6 +109,7 @@ RunPluginUiLogicTests();
 RunDebugLogBufferTests();
 RunRetriggerQueueTests();
 RunRetriggerSchedulerTests();
+RunReactionVisualizerStateTests();
 RunConfigurationUpgradeTransactionTests(options);
 
 Console.WriteLine("All PuppetMaster configuration migration tests passed.");
@@ -177,6 +178,20 @@ static void RunExecutionGateTests()
     Assert(gate.TryEnter(cooldownReaction, TimeSpan.FromSeconds(10), startedAt + 10 * second, out var finalLease, out _),
         "reaction should enter at cooldown boundary");
     finalLease!.Dispose();
+
+    var restartReaction = new Reaction();
+    Assert(gate.TryEnter(restartReaction, TimeSpan.FromSeconds(30), startedAt, out var restartInitialLease, out _),
+        "restart test should acquire its initial lease");
+    restartInitialLease!.Dispose();
+    Assert(gate.TryEnter(
+            restartReaction,
+            TimeSpan.Zero,
+            startedAt + second,
+            out var restartLease,
+            out _,
+            ignoreCooldown: true),
+        "restart-immediately should bypass a stored cooldown");
+    restartLease!.Dispose();
 
     var priorityGate = new ReactionExecutionGate();
     var priorityReaction = new Reaction();
@@ -327,6 +342,19 @@ static void RunPluginUiLogicTests()
         "switching back should restore the simple preview pattern");
     Assert(PluginUiLogic.ClampCooldown(-1) == 0 && PluginUiLogic.ClampCooldown(90000) == 86400,
         "cooldown editor values should stay within UI bounds");
+    Assert(PluginUiLogic.IgnoresCooldown(ReactionExecutionPolicy.RestartImmediately) &&
+           PluginUiLogic.RestartsActiveRun(ReactionExecutionPolicy.RestartImmediately),
+        "restart-immediately UI should disable cooldown and identify the active run for replacement");
+    Assert(!PluginUiLogic.IgnoresCooldown(ReactionExecutionPolicy.QueueLatestTrigger) &&
+           !PluginUiLogic.RestartsActiveRun(ReactionExecutionPolicy.QueueEveryTrigger),
+        "existing execution policies should retain their cooldown and non-restart behavior");
+    Assert(PluginUiLogic.ExecutionPolicyLabels.Length == Enum.GetValues<ReactionExecutionPolicy>().Length &&
+           PluginUiLogic.ExecutionPolicyLabels[(int)ReactionExecutionPolicy.RestartImmediately] == "Restart immediately",
+        "execution-policy selector should expose the restart-immediately enum option in matching order");
+    Assert(PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.RestartImmediately).Contains("Cancels") &&
+           PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.RestartImmediately).Contains("ignored") &&
+           PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.QueueLatestTrigger).Contains("Start-to-start"),
+        "execution editor should explain restart cancellation and its disabled cooldown behavior");
 
     Assert(PluginUiLogic.NormalizeCommand(" echo hello ") == "/echo", "command input should normalize to its lowercase command name");
     Assert(PluginUiLogic.NormalizeCommand("/AC Vercure [t]") == "/ac", "command normalization should ignore arguments and casing");
@@ -451,6 +479,12 @@ static void RunRetriggerQueueTests()
     Assert(latest.TryDequeue(out var latestItem) && latestItem == "B",
         "latest policy should keep the newest retrigger");
 
+    var restart = new BoundedRetriggerQueue<string>(3);
+    restart.Enqueue(ReactionExecutionPolicy.RestartImmediately, "A");
+    restart.Enqueue(ReactionExecutionPolicy.RestartImmediately, "B");
+    Assert(restart.Count == 1 && restart.TryDequeue(out var restartItem) && restartItem == "B",
+        "restart-immediately should retain only the newest replacement");
+
     var every = new BoundedRetriggerQueue<string>(3);
     every.Enqueue(ReactionExecutionPolicy.QueueEveryTrigger, "A");
     every.Enqueue(ReactionExecutionPolicy.QueueEveryTrigger, "B");
@@ -499,6 +533,37 @@ static void RunRetriggerSchedulerTests()
     drainer.GetAwaiter().GetResult();
     Assert(executed.SequenceEqual(["B"]),
         "latest scheduler should execute only the newest item that arrived while waiting");
+
+    var restartGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var restartAcquireStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var restartExecuted = new List<string>();
+    var restartScheduler = new BoundedRetriggerScheduler<string>(
+        16,
+        async (_, cancellationToken) =>
+        {
+            restartAcquireStarted.TrySetResult();
+            await restartGate.Task.WaitAsync(cancellationToken);
+            return new CancellationTokenSource();
+        },
+        (item, lease) =>
+        {
+            lease.Dispose();
+            restartExecuted.Add(item);
+            return Task.CompletedTask;
+        });
+    var restartDrainer = restartScheduler.Enqueue(
+        ReactionExecutionPolicy.RestartImmediately,
+        "A",
+        CancellationToken.None)!;
+    restartAcquireStarted.Task.GetAwaiter().GetResult();
+    restartScheduler.Enqueue(ReactionExecutionPolicy.RestartImmediately, "B", CancellationToken.None);
+    restartScheduler.Enqueue(ReactionExecutionPolicy.RestartImmediately, "C", CancellationToken.None);
+    Assert(restartScheduler.PendingCount == 1,
+        "restart scheduler should expose only the newest waiting replacement");
+    restartGate.TrySetResult();
+    restartDrainer.GetAwaiter().GetResult();
+    Assert(restartExecuted.SequenceEqual(["C"]),
+        "restart scheduler should discard superseded replacements before execution");
 
     var neverOpen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     var cancelledExecutions = 0;
@@ -593,6 +658,30 @@ static void RunRetriggerSchedulerTests()
     Assert(failureScheduler.PendingCount == 0, "scheduler failure should clear its unusable backlog");
 
     Console.WriteLine("PASS bounded retrigger scheduler");
+}
+
+static void RunReactionVisualizerStateTests()
+{
+    Assert(ReactionVisualizerState.ResolveFinishedStatus(cancelled: false, reactionEnabled: false) ==
+           VisualizerRunStatus.Completed,
+        "completed visualizer runs should remain completed even if the reaction is disabled afterward");
+    Assert(ReactionVisualizerState.ResolveFinishedStatus(cancelled: true, reactionEnabled: true) ==
+           VisualizerRunStatus.Cancelled,
+        "ordinary cancellations should remain visually distinct");
+    Assert(ReactionVisualizerState.ResolveFinishedStatus(cancelled: true, reactionEnabled: false) ==
+           VisualizerRunStatus.Disabled,
+        "runs cancelled by disabling a reaction should use the neutral stopped state");
+
+    ReactionVisualizerState.Reset();
+    var runId = ReactionVisualizerState.Started(1, "Self-disabling reaction", "/puppetmaster off");
+    ReactionVisualizerState.Finished(runId, cancelled: true, reactionEnabled: false);
+    var snapshot = ReactionVisualizerState.Snapshot();
+    Assert(snapshot.Active.Length == 0 && snapshot.Recent.Length == 1 &&
+           snapshot.Recent[0].Status == VisualizerRunStatus.Disabled,
+        "disabled run should move from its worker lane into visualizer history as stopped");
+    ReactionVisualizerState.Reset();
+
+    Console.WriteLine("PASS reaction visualizer state");
 }
 
 static void RunConfigurationUpgradeTransactionTests(JsonSerializerOptions serializerOptions)

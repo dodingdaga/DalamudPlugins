@@ -1201,29 +1201,29 @@ namespace PuppetMaster
                             if (ImGui.Combo(
                                     "Retriggers while busy",
                                     ref executionPolicy,
-                                    ["Queue every trigger", "Ignore", "Queue latest trigger"],
-                                    3))
+                                    PluginUiLogic.ExecutionPolicyLabels,
+                                    PluginUiLogic.ExecutionPolicyLabels.Length))
                             {
                                 reaction.ExecutionPolicy = (ReactionExecutionPolicy)executionPolicy;
                                 ChatHandler.InvalidateReaction(reaction, false);
                                 Service.configuration.Save();
                             }
-                            ImGui.TextDisabled(reaction.ExecutionPolicy switch
-                            {
-                                ReactionExecutionPolicy.QueueEveryTrigger => "Queues every trigger while running or waiting on queued work (maximum 16 pending).",
-                                ReactionExecutionPolicy.QueueLatestTrigger => "Keeps only the newest trigger while running or waiting on queued work.",
-                                _ => "Discards triggers received while the reaction is running or has queued work.",
-                            });
+                            ImGui.TextDisabled(PluginUiLogic.GetExecutionPolicyDescription(reaction.ExecutionPolicy));
                             ImGui.Spacing();
                             var cooldownSeconds = reaction.CooldownSeconds;
                             ImGui.SetNextItemWidth(180);
+                            var ignoresCooldown = PluginUiLogic.IgnoresCooldown(reaction.ExecutionPolicy);
+                            if (ignoresCooldown)
+                                ImGui.BeginDisabled();
                             if (ImGui.InputInt("Cooldown (seconds)", ref cooldownSeconds, 1, 10))
                             {
                                 reaction.CooldownSeconds = PluginUiLogic.ClampCooldown(cooldownSeconds);
                                 ChatHandler.InvalidateReaction(reaction, false);
                                 Service.configuration.Save();
                             }
-                            ImGui.TextDisabled("Start-to-start delay. Only one instance of this reaction can run at a time.");
+                            if (ignoresCooldown)
+                                ImGui.EndDisabled();
+                            ImGui.TextDisabled(PluginUiLogic.GetCooldownDescription(reaction.ExecutionPolicy));
                             ImGui.Spacing();
 
                             ImGui.TextUnformatted("Text Command Rules");

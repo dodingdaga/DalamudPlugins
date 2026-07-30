@@ -22,7 +22,8 @@ internal sealed class ReactionExecutionGate
         TimeSpan cooldown,
         long nowTimestamp,
         out IDisposable? lease,
-        out ReactionRejectionReason rejectionReason)
+        out ReactionRejectionReason rejectionReason,
+        bool ignoreCooldown = false)
     {
         var state = states.GetValue(reaction, static _ => new State());
         lock (state)
@@ -34,7 +35,7 @@ internal sealed class ReactionExecutionGate
                 return false;
             }
 
-            if (nowTimestamp < state.NextAllowedTimestamp)
+            if (!ignoreCooldown && nowTimestamp < state.NextAllowedTimestamp)
             {
                 lease = null;
                 rejectionReason = ReactionRejectionReason.Cooldown;
@@ -56,7 +57,8 @@ internal sealed class ReactionExecutionGate
     public async Task<IDisposable> EnterWhenAvailableAsync(
         Reaction reaction,
         TimeSpan cooldown,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool ignoreCooldown = false)
     {
         var state = states.GetValue(reaction, static _ => new State());
         lock (state)
@@ -71,7 +73,7 @@ internal sealed class ReactionExecutionGate
                 lock (state)
                 {
                     var nowTimestamp = Stopwatch.GetTimestamp();
-                    if (!state.Running && nowTimestamp >= state.NextAllowedTimestamp)
+                    if (!state.Running && (ignoreCooldown || nowTimestamp >= state.NextAllowedTimestamp))
                     {
                         state.WaitingEntrants--;
                         StartRun(state, cooldown, nowTimestamp);

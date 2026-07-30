@@ -578,12 +578,24 @@ namespace PuppetMaster
                 return;
             }
 
+            var restartImmediately = PluginUiLogic.RestartsActiveRun(reaction.ExecutionPolicy);
+            if (restartImmediately)
+            {
+                CancelQueuedRetriggers(reaction.Source);
+                if (ActiveReactionCancellations.TryGetValue(reaction.Source, out var activeCancellation))
+                {
+                    try { activeCancellation.Cancel(); }
+                    catch (ObjectDisposedException) { }
+                }
+            }
+
             if (!ExecutionGate.TryEnter(
                     reaction.Source,
-                    TimeSpan.FromSeconds(reaction.CooldownSeconds),
+                    restartImmediately ? TimeSpan.Zero : TimeSpan.FromSeconds(reaction.CooldownSeconds),
                     Stopwatch.GetTimestamp(),
                     out var lease,
-                    out var rejectionReason))
+                    out var rejectionReason,
+                    restartImmediately))
             {
                 if (rejectionReason == ReactionRejectionReason.Busy &&
                     reaction.ExecutionPolicy != ReactionExecutionPolicy.IgnoreWhileRunning)
@@ -627,7 +639,10 @@ namespace PuppetMaster
                 finally
                 {
                     ActiveReactionCancellations.TryRemove(reaction.Source, out _);
-                    ReactionVisualizerState.Finished(visualizerRunId, runCancellation.IsCancellationRequested);
+                    ReactionVisualizerState.Finished(
+                        visualizerRunId,
+                        runCancellation.IsCancellationRequested,
+                        reaction.Source.Enabled);
                 }
             }
         }
@@ -642,8 +657,11 @@ namespace PuppetMaster
                     16,
                     (pending, cancellationToken) => ExecutionGate.EnterWhenAvailableAsync(
                         source,
-                        TimeSpan.FromSeconds(pending.Reaction.CooldownSeconds),
-                        cancellationToken),
+                        PluginUiLogic.IgnoresCooldown(pending.Reaction.ExecutionPolicy)
+                            ? TimeSpan.Zero
+                            : TimeSpan.FromSeconds(pending.Reaction.CooldownSeconds),
+                        cancellationToken,
+                        PluginUiLogic.IgnoresCooldown(pending.Reaction.ExecutionPolicy)),
                     (pending, lease) => RunAcceptedCommandAsync(
                         pending.Reaction,
                         pending.Command,

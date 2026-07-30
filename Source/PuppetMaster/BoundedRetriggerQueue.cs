@@ -14,7 +14,7 @@ internal sealed class BoundedRetriggerQueue<T>(int capacity)
             return 0;
 
         var dropped = 0;
-        if (policy == ReactionExecutionPolicy.QueueLatestTrigger)
+        if (policy is ReactionExecutionPolicy.QueueLatestTrigger or ReactionExecutionPolicy.RestartImmediately)
         {
             dropped = items.Count;
             items.Clear();

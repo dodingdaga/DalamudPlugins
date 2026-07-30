@@ -16,6 +16,7 @@
     <Compile Include="..\PuppetMaster\DebugLogBuffer.cs" Link="DebugLogBuffer.cs" />
     <Compile Include="..\PuppetMaster\BoundedRetriggerQueue.cs" Link="BoundedRetriggerQueue.cs" />
     <Compile Include="..\PuppetMaster\BoundedRetriggerScheduler.cs" Link="BoundedRetriggerScheduler.cs" />
+    <Compile Include="..\PuppetMaster\ReactionVisualizerState.cs" Link="ReactionVisualizerState.cs" />
     <Compile Include="..\PuppetMaster\ConfigurationUpgradeTransaction.cs" Link="ConfigurationUpgradeTransaction.cs" />
     <None Include="..\PuppetMaster\TestConfigs\*.json" Link="TestConfigs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -134,12 +134,17 @@ internal sealed class ReactionVisualizerWindow : Window
             if (snapshot.Recent.Length == 0) ImGui.TextDisabled("Completed reactions will appear here");
             foreach (var item in snapshot.Recent)
             {
-                var color = item.Status == VisualizerRunStatus.Cancelled ? CancelledColor : CompletedColor;
+                var (color, icon, note) = item.Status switch
+                {
+                    VisualizerRunStatus.Cancelled => (CancelledColor, "×", (string?)null),
+                    VisualizerRunStatus.Disabled => (DisabledColor, "■", "Reaction disabled during execution."),
+                    _ => (CompletedColor, "✓", null),
+                };
                 var duration = item.FinishedAt.HasValue ? item.FinishedAt.Value - item.StartedAt : TimeSpan.Zero;
-                ImGui.TextColored(color, item.Status == VisualizerRunStatus.Cancelled ? "×" : "✓");
+                ImGui.TextColored(color, icon);
                 ImGui.SameLine(); ImGui.TextUnformatted(item.ReactionName);
                 ImGui.SameLine(); ImGui.TextDisabled($"{duration.TotalMilliseconds:0} ms  ·  {item.StartedAt:HH:mm:ss}");
-                DrawTooltip(item.Command, item.StartedAt);
+                DrawTooltip(item.Command, item.StartedAt, note);
             }
         }
         ImGui.EndChild();
@@ -262,11 +267,15 @@ internal sealed class ReactionVisualizerWindow : Window
         DrawTooltip(command, timestamp);
     }
 
-    private static void DrawTooltip(string command, DateTime timestamp)
+    private static void DrawTooltip(string command, DateTime timestamp, string? note = null)
     {
         if (!ImGui.IsItemHovered()) return;
         ImGui.BeginTooltip();
         ImGui.TextDisabled($"Received {timestamp:HH:mm:ss.fff}");
+        if (!string.IsNullOrWhiteSpace(note))
+        {
+            ImGui.TextDisabled(note);
+        }
         ImGui.Separator();
         ImGui.TextUnformatted(string.IsNullOrWhiteSpace(command) ? "No generated command" : command);
         ImGui.EndTooltip();

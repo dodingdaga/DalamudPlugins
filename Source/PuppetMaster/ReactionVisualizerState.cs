@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace PuppetMaster;
 
-internal enum VisualizerRunStatus { Running, Completed, Cancelled }
+internal enum VisualizerRunStatus { Running, Completed, Cancelled, Disabled }
 
 internal sealed record VisualizerRunSnapshot(long Id, long ReactionId, string ReactionName, string Command,
     int Lane, VisualizerRunStatus Status, DateTime StartedAt, DateTime? FinishedAt);
@@ -41,7 +41,7 @@ internal static class ReactionVisualizerState
         }
     }
 
-    public static void Finished(long runId, bool cancelled)
+    public static void Finished(long runId, bool cancelled, bool reactionEnabled)
     {
         lock (Sync)
         {
@@ -49,7 +49,7 @@ internal static class ReactionVisualizerState
             if (index < 0) return;
             var completed = Active[index] with
             {
-                Status = cancelled ? VisualizerRunStatus.Cancelled : VisualizerRunStatus.Completed,
+                Status = ResolveFinishedStatus(cancelled, reactionEnabled),
                 FinishedAt = DateTime.Now,
             };
             Active.RemoveAt(index);
@@ -63,7 +63,8 @@ internal static class ReactionVisualizerState
     {
         lock (Sync)
         {
-            if (policy == ReactionExecutionPolicy.QueueLatestTrigger) Queued.RemoveAll(item => item.ReactionId == reactionId);
+            if (policy is ReactionExecutionPolicy.QueueLatestTrigger or ReactionExecutionPolicy.RestartImmediately)
+                Queued.RemoveAll(item => item.ReactionId == reactionId);
             Queued.Add(new(++nextId, reactionId, DisplayName(reactionName), command, DateTime.Now));
             while (Queued.Count(item => item.ReactionId == reactionId) > 16)
             {
@@ -88,6 +89,13 @@ internal static class ReactionVisualizerState
     public static void Reset()
     {
         lock (Sync) { Active.Clear(); Queued.Clear(); Recent.Clear(); }
+    }
+
+    public static VisualizerRunStatus ResolveFinishedStatus(bool cancelled, bool reactionEnabled)
+    {
+        if (!cancelled)
+            return VisualizerRunStatus.Completed;
+        return reactionEnabled ? VisualizerRunStatus.Cancelled : VisualizerRunStatus.Disabled;
     }
 
     private static void RebalanceLanes()

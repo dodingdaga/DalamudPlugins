@@ -15,7 +15,7 @@ into emotes or other FFXIV text commands.
 - Configure independent reactions with normal or regex triggers.
 - Restrict reactions by official or custom chat channel.
 - Control commands with per-reaction allowed and denied lists.
-- Choose queue-all, ignore, or queue-latest retrigger behavior with cooldowns.
+- Choose queue-all, ignore, queue-latest, or immediate-restart retrigger behavior.
 - Monitor active and queued reactions in a separate read-only visualizer.
 - Override progress and suppression notifications per reaction.
 - Inspect message logs and create reactions directly from captured messages.

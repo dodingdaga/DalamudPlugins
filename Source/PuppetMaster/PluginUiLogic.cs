@@ -16,6 +16,9 @@ internal enum ReactionUiStatus
 
 internal static class PluginUiLogic
 {
+    public static readonly string[] ExecutionPolicyLabels =
+        ["Queue every trigger", "Ignore", "Queue latest trigger", "Restart immediately"];
+
     public static Dictionary<string, List<int>> GroupReactionIndexes(IReadOnlyList<Reaction> reactions)
     {
         var groups = new Dictionary<string, List<int>>(StringComparer.Ordinal);
@@ -74,6 +77,34 @@ internal static class PluginUiLogic
     public static int ClampCooldown(int seconds)
     {
         return Math.Clamp(seconds, 0, 86400);
+    }
+
+    public static bool IgnoresCooldown(ReactionExecutionPolicy policy)
+    {
+        return policy == ReactionExecutionPolicy.RestartImmediately;
+    }
+
+    public static bool RestartsActiveRun(ReactionExecutionPolicy policy)
+    {
+        return policy == ReactionExecutionPolicy.RestartImmediately;
+    }
+
+    public static string GetExecutionPolicyDescription(ReactionExecutionPolicy policy)
+    {
+        return policy switch
+        {
+            ReactionExecutionPolicy.QueueEveryTrigger => "Queues every trigger while running or waiting on queued work (maximum 16 pending).",
+            ReactionExecutionPolicy.QueueLatestTrigger => "Keeps only the newest trigger while running or waiting on queued work.",
+            ReactionExecutionPolicy.RestartImmediately => "Cancels the current run and starts the newest trigger as soon as cancellation completes.",
+            _ => "Discards triggers received while the reaction is running or has queued work.",
+        };
+    }
+
+    public static string GetCooldownDescription(ReactionExecutionPolicy policy)
+    {
+        return IgnoresCooldown(policy)
+            ? "Cooldown is saved but ignored because Restart immediately runs on every trigger."
+            : "Start-to-start delay. Only one instance of this reaction can run at a time.";
     }
 
     public static void SetReactionEnabled(Reaction reaction, bool enabled, Action<Reaction>? cancel = null)
