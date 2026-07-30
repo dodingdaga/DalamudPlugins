@@ -16,7 +16,7 @@ Run("PuppetMaster_v0.json", configuration =>
     Assert(reaction.TriggerPhrase == "please do", "v0 trigger should be preserved");
     Assert(reaction.EnabledChannels.Contains(10), "v0 enabled Say channel should be preserved");
     Assert(reaction.CommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "v0 sit rules should normalize");
-    Assert(configuration.ShowReactionNotifications, "v0 should receive the v2 notification default");
+    Assert(!configuration.ShowReactionNotifications, "v0 should keep notifications off during migration");
     Assert(!configuration.ShowSuppressedReactionNotifications, "v0 should keep suppression notifications off by default");
     Assert(configuration.DefaultCommandWhitelist.Count == 0, "v0 should receive an empty default whitelist");
     Assert(configuration.DefaultCommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]), "v0 should receive safe command defaults");
@@ -32,7 +32,7 @@ Run("PuppetMaster_v0.json", configuration =>
 Run("PuppetMaster_v1.json", configuration =>
 {
     Assert(configuration.Version == 3, "v1 should migrate to v3");
-    Assert(configuration.ShowReactionNotifications, "v1 should enable notification default");
+    Assert(!configuration.ShowReactionNotifications, "v1 should keep notifications off during migration");
     Assert(!configuration.ShowSuppressedReactionNotifications, "v1 should keep suppression notifications off by default");
     Assert(configuration.Reactions[0].AllowAllCommands, "v1 AllowAllCommands should be preserved");
     Assert(configuration.Reactions[0].EnabledChannels.SequenceEqual([10, 14]), "v1 channels should be preserved");

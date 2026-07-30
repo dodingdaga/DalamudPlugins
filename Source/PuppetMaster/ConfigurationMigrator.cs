@@ -67,7 +67,7 @@ public static class ConfigurationMigrator
 
     private static bool MigrateV1ToV2(Configuration configuration)
     {
-        configuration.ShowReactionNotifications = true;
+        configuration.ShowReactionNotifications = false;
         configuration.ShowSuppressedReactionNotifications = false;
         configuration.DefaultCommandWhitelist = [];
         configuration.DefaultCommandBlacklist = [.. LegacySitCommands];
