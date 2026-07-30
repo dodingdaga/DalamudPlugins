@@ -1005,6 +1005,9 @@ namespace PuppetMaster
                     SelectReaction(configuration.Reactions.Count - 1);
                     SelectReactionEditor = true;
                 }
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Open Visualizer"))
+                    Service.plugin!.DrawVisualizerUI();
 
                 ImGui.Spacing();
                 ImGui.Separator();
@@ -1179,6 +1182,8 @@ namespace PuppetMaster
                             ReactionEditorSection = 1;
                         if (ImGui.Selectable($"Channels ({reaction.EnabledChannels.Count})##ReactionEditorChannelSection", ReactionEditorSection == 2))
                             ReactionEditorSection = 2;
+                        if (ImGui.Selectable("Notifications", ReactionEditorSection == 3))
+                            ReactionEditorSection = 3;
                     }
                     ImGui.EndChild();
                     ImGui.SameLine();
@@ -1228,8 +1233,46 @@ namespace PuppetMaster
                             ImGui.Spacing();
                             DrawCommandRulesEditor(reaction);
                         }
-                        else
+                        else if (ReactionEditorSection == 2)
                             DrawChannelSelector(CurrentReactionIndex);
+                        else
+                        {
+                            ImGui.TextUnformatted("Notifications");
+                            ImGui.Separator();
+                            ImGui.TextDisabled("Override the global notification defaults for this reaction.");
+                            ImGui.Spacing();
+
+                            var progressNotifications = (int)reaction.ProgressNotifications;
+                            ImGui.SetNextItemWidth(240);
+                            if (ImGui.Combo(
+                                    "Progress and completion",
+                                    ref progressNotifications,
+                                    ["Use global default", "Always show", "Never show"],
+                                    3))
+                            {
+                                reaction.ProgressNotifications = (ReactionNotificationSetting)progressNotifications;
+                                ChatHandler.InvalidateReaction(reaction, false);
+                                Service.configuration.Save();
+                            }
+                            ImGui.TextDisabled("Controls progress and completion notifications for this reaction.");
+                            ImGui.Spacing();
+
+                            var suppressedNotifications = (int)reaction.SuppressedNotifications;
+                            ImGui.SetNextItemWidth(240);
+                            if (ImGui.Combo(
+                                    "Suppressed triggers",
+                                    ref suppressedNotifications,
+                                    ["Use global default", "Always show", "Never show"],
+                                    3))
+                            {
+                                reaction.SuppressedNotifications = (ReactionNotificationSetting)suppressedNotifications;
+                                ChatHandler.InvalidateReaction(reaction, false);
+                                Service.configuration.Save();
+                            }
+                            ImGui.TextDisabled("Controls rate-limited busy and cooldown notices for this reaction.");
+                            ImGui.Spacing();
+                            ImGui.TextDisabled("Global defaults are configured under Settings > Notifications.");
+                        }
                     }
                     ImGui.EndChild();
                 }
@@ -1260,7 +1303,7 @@ namespace PuppetMaster
                 {
                     if (SettingsSection == 0)
                     {
-                        ImGui.TextUnformatted("Notifications");
+                        ImGui.TextUnformatted("Notification Defaults");
                         ImGui.Separator();
                         var showReactionNotifications = configuration.ShowReactionNotifications;
                         if (ImGui.Checkbox("Show reaction progress notifications", ref showReactionNotifications))
@@ -1268,7 +1311,7 @@ namespace PuppetMaster
                             configuration.ShowReactionNotifications = showReactionNotifications;
                             configuration.Save();
                         }
-                        ImGui.TextDisabled("Shows command progress and a Cancel button while a reaction is running.");
+                        ImGui.TextDisabled("Default for command progress and completion. Individual reactions may override it.");
 
                         var showSuppressedReactionNotifications = configuration.ShowSuppressedReactionNotifications;
                         if (ImGui.Checkbox("Notify when a reaction is suppressed", ref showSuppressedReactionNotifications))
@@ -1276,7 +1319,7 @@ namespace PuppetMaster
                             configuration.ShowSuppressedReactionNotifications = showSuppressedReactionNotifications;
                             configuration.Save();
                         }
-                        ImGui.TextDisabled("Shows rate-limited notices for retriggers blocked by single-flight or cooldown.");
+                        ImGui.TextDisabled("Default for rate-limited suppression notices. Individual reactions may override it.");
                     }
                     else if (SettingsSection == 1)
                     {

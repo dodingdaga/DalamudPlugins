@@ -16,12 +16,15 @@ into emotes or other FFXIV text commands.
 - Restrict reactions by official or custom chat channel.
 - Control commands with per-reaction allowed and denied lists.
 - Choose queue-all, ignore, or queue-latest retrigger behavior with cooldowns.
+- Monitor active and queued reactions in a separate read-only visualizer.
+- Override progress and suppression notifications per reaction.
 - Inspect message logs and create reactions directly from captured messages.
 - Open the plugin settings with `/puppetmaster`.
 - Enable or disable every reaction with `/puppetmaster on` or
   `/puppetmaster off`.
 - Enable or disable one named reaction with `/puppetmaster on <ReactionName>`
   or `/puppetmaster off <ReactionName>`.
+- Open the reaction visualizer with `/puppetmaster viz`.
 
 Only enable reactions in channels you trust. Emotes are allowed by default;
 other text commands must be explicitly whitelisted unless **Allow all text

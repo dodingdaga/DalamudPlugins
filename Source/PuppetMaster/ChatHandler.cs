@@ -30,6 +30,7 @@ namespace PuppetMaster
         private static ConditionalWeakTable<Reaction, BoundedRetriggerScheduler<PendingRetrigger>> retriggerQueues = new();
         private static CancellationTokenSource pluginLifetime = new();
         private static long nextTaskId;
+        private static long nextVisualizerReactionId;
         private static long droppedMessageCount;
         private static long droppedRetriggerCount;
         private static int shuttingDown;
@@ -67,6 +68,7 @@ namespace PuppetMaster
         private sealed class ReactionControlState
         {
             public long Generation;
+            public long VisualizerId = Interlocked.Increment(ref nextVisualizerReactionId);
         }
 
         private sealed class ErrorNotificationState
@@ -88,6 +90,7 @@ namespace PuppetMaster
             Interlocked.Exchange(ref droppedMessageCount, 0);
             Interlocked.Exchange(ref droppedRetriggerCount, 0);
             ExecutionGate.Reset();
+            ReactionVisualizerState.Reset();
             suppressionNotifications = new ConditionalWeakTable<Reaction, SuppressionNotificationState>();
             errorNotifications = new ConditionalWeakTable<Reaction, ErrorNotificationState>();
             reactionControls = new ConditionalWeakTable<Reaction, ReactionControlState>();
@@ -115,6 +118,7 @@ namespace PuppetMaster
             }
             ActiveNotifications.Clear();
             ExecutionGate.Reset();
+            ReactionVisualizerState.Reset();
             suppressionNotifications = new ConditionalWeakTable<Reaction, SuppressionNotificationState>();
             errorNotifications = new ConditionalWeakTable<Reaction, ErrorNotificationState>();
             reactionControls = new ConditionalWeakTable<Reaction, ReactionControlState>();
@@ -140,6 +144,8 @@ namespace PuppetMaster
 
         private static void CancelQueuedRetriggers(Reaction reaction)
         {
+            if (reactionControls.TryGetValue(reaction, out var control))
+                ReactionVisualizerState.ClearQueued(control.VisualizerId);
             if (!retriggerQueues.TryGetValue(reaction, out var state))
                 return;
             state.Cancel();
@@ -147,6 +153,11 @@ namespace PuppetMaster
 
         public static long DroppedMessageCount => Interlocked.Read(ref droppedMessageCount);
         public static long DroppedRetriggerCount => Interlocked.Read(ref droppedRetriggerCount);
+
+        internal static long GetVisualizerId(Reaction reaction)
+        {
+            return reactionControls.GetValue(reaction, static _ => new ReactionControlState()).VisualizerId;
+        }
 
         public static void ResetDroppedMessageCount()
         {
@@ -204,8 +215,8 @@ namespace PuppetMaster
                 reaction.MotionOnly,
                 reaction.AllowAllCommands,
                 reaction.ExecutionPolicy,
-                showNotifications,
-                showSuppressionNotifications,
+                PluginUiLogic.ResolveNotificationSetting(reaction.ProgressNotifications, showNotifications),
+                PluginUiLogic.ResolveNotificationSetting(reaction.SuppressedNotifications, showSuppressionNotifications),
                 Math.Max(0, reaction.CooldownSeconds),
                 new HashSet<int>(reaction.EnabledChannels),
                 new HashSet<string>(reaction.CommandWhitelist, StringComparer.OrdinalIgnoreCase),
@@ -593,9 +604,14 @@ namespace PuppetMaster
             IDisposable lease,
             CancellationToken pluginToken)
         {
+            pluginToken.ThrowIfCancellationRequested();
+            ReactionVisualizerState.DequeuedRun(reaction.Control.VisualizerId);
+            var visualizerRunId = ReactionVisualizerState.Started(
+                reaction.Control.VisualizerId,
+                reaction.Name,
+                command);
             using (lease)
             {
-                pluginToken.ThrowIfCancellationRequested();
                 var lines = MyRegex().Split(command);
                 using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(pluginToken);
                 ActiveReactionCancellations[reaction.Source] = runCancellation;
@@ -611,6 +627,7 @@ namespace PuppetMaster
                 finally
                 {
                     ActiveReactionCancellations.TryRemove(reaction.Source, out _);
+                    ReactionVisualizerState.Finished(visualizerRunId, runCancellation.IsCancellationRequested);
                 }
             }
         }
@@ -648,6 +665,11 @@ namespace PuppetMaster
                 reaction.ExecutionPolicy,
                 new PendingRetrigger(reaction, command, pluginToken),
                 pluginToken);
+            ReactionVisualizerState.QueuedRun(
+                reaction.Control.VisualizerId,
+                reaction.Name,
+                command,
+                reaction.ExecutionPolicy);
             if (drainer != null)
                 Track(drainer);
         }

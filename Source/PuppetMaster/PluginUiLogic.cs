@@ -151,6 +151,8 @@ internal static class PluginUiLogic
             MotionOnly = source.MotionOnly,
             CooldownSeconds = source.CooldownSeconds,
             ExecutionPolicy = source.ExecutionPolicy,
+            ProgressNotifications = source.ProgressNotifications,
+            SuppressedNotifications = source.SuppressedNotifications,
             AllowAllCommands = source.AllowAllCommands,
             UseRegex = source.UseRegex,
             CustomPhrase = source.CustomPhrase,
@@ -159,6 +161,16 @@ internal static class PluginUiLogic
             EnabledChannels = new List<int>(source.EnabledChannels),
             CommandWhitelist = new List<string>(source.CommandWhitelist),
             CommandBlacklist = new List<string>(source.CommandBlacklist),
+        };
+    }
+
+    public static bool ResolveNotificationSetting(ReactionNotificationSetting setting, bool globalDefault)
+    {
+        return setting switch
+        {
+            ReactionNotificationSetting.Enabled => true,
+            ReactionNotificationSetting.Disabled => false,
+            _ => globalDefault,
         };
     }
 

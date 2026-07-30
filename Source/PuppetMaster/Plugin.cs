@@ -13,6 +13,7 @@ namespace PuppetMaster
         private const String CommandName = "/puppetmaster";
         public WindowSystem windowSystem = new("PuppetMaster");
         public ConfigWindow configWindow;
+        internal ReactionVisualizerWindow visualizerWindow;
 
         public Plugin(IDalamudPluginInterface pluginInterface)
         {
@@ -24,7 +25,9 @@ namespace PuppetMaster
             Service.InitializeConfig();
 
             this.configWindow = new ConfigWindow();
+            this.visualizerWindow = new ReactionVisualizerWindow();
             windowSystem.AddWindow(configWindow);
+            windowSystem.AddWindow(visualizerWindow);
 
             // Handlers
             ChatHandler.Initialize();
@@ -35,7 +38,8 @@ namespace PuppetMaster
 /puppetmaster on|off <ReactionName> - enable or disable reactions by name
 /puppetmaster logging on|off - enable or disable message logging
 /puppetmaster logging clear - clear captured logs and overload counters
-/puppetmaster logging save - save captured logs to a timestamped file"
+/puppetmaster logging save - save captured logs to a timestamped file
+/puppetmaster viz - open the read-only reaction visualizer"
             });
             Service.ChatGui.ChatMessage += ChatHandler.OnChatMessage;
             Service.PluginInterface.UiBuilder.Draw += DrawUI;
@@ -89,6 +93,10 @@ namespace PuppetMaster
                 {
                     HandleLoggingCommand(ptc.Args);
                 }
+                else if (ptc.Main.Equals("/viz") || ptc.Main.Equals("/visualizer"))
+                {
+                    this.visualizerWindow.IsOpen = true;
+                }
             }
         }
 
@@ -139,6 +147,11 @@ namespace PuppetMaster
         {
             this.configWindow.IsOpen = true;
             ConfigWindow.PreloadTestResult();
+        }
+
+        internal void DrawVisualizerUI()
+        {
+            this.visualizerWindow.IsOpen = true;
         }
     }
 }

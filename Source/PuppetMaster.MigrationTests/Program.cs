@@ -10,7 +10,7 @@ var options = new JsonSerializerOptions
 
 Run("PuppetMaster_v0.json", configuration =>
 {
-    Assert(configuration.Version == 2, "v0 should migrate to v2");
+    Assert(configuration.Version == 3, "v0 should migrate to v3");
     Assert(configuration.Reactions.Count == 1, "v0 should create one reaction");
     var reaction = configuration.Reactions[0];
     Assert(reaction.TriggerPhrase == "please do", "v0 trigger should be preserved");
@@ -24,11 +24,14 @@ Run("PuppetMaster_v0.json", configuration =>
     Assert(configuration.DefaultEnabledChannels.Count == 0, "v0 should receive empty channel defaults");
     Assert(reaction.ExecutionPolicy == ReactionExecutionPolicy.QueueEveryTrigger,
         "v0 reaction should preserve legacy retrigger behavior");
+    Assert(reaction.ProgressNotifications == ReactionNotificationSetting.Inherit &&
+           reaction.SuppressedNotifications == ReactionNotificationSetting.Inherit,
+        "v0 reaction should inherit the v3 notification defaults");
 });
 
 Run("PuppetMaster_v1.json", configuration =>
 {
-    Assert(configuration.Version == 2, "v1 should migrate to v2");
+    Assert(configuration.Version == 3, "v1 should migrate to v3");
     Assert(configuration.ShowReactionNotifications, "v1 should enable notification default");
     Assert(!configuration.ShowSuppressedReactionNotifications, "v1 should keep suppression notifications off by default");
     Assert(configuration.Reactions[0].AllowAllCommands, "v1 AllowAllCommands should be preserved");
@@ -42,7 +45,7 @@ Run("PuppetMaster_v1.json", configuration =>
 
 Run("PuppetMaster_v2_legacy.json", configuration =>
 {
-    Assert(configuration.Version == 2, "v2 should stay v2");
+    Assert(configuration.Version == 3, "v2 should migrate to v3");
     Assert(!configuration.ShowReactionNotifications, "existing v2 notification choice should be preserved");
     Assert(configuration.ShowSuppressedReactionNotifications, "existing v2 suppression notification choice should be preserved");
     var reaction = configuration.Reactions[0];
@@ -60,6 +63,12 @@ Run("PuppetMaster_v2_legacy.json", configuration =>
            configuration.CustomChannels[0].ChatType == 77 &&
            configuration.CustomChannels[0].Name == "First",
         "custom channels should remove invalid and duplicate IDs while preserving the first entry");
+    Assert(reaction.ProgressNotifications == ReactionNotificationSetting.Inherit &&
+           reaction.SuppressedNotifications == ReactionNotificationSetting.Inherit,
+        "v2 reactions should inherit global notification choices after migration");
+    Assert(!PluginUiLogic.ResolveNotificationSetting(reaction.ProgressNotifications, configuration.ShowReactionNotifications) &&
+           PluginUiLogic.ResolveNotificationSetting(reaction.SuppressedNotifications, configuration.ShowSuppressedReactionNotifications),
+        "v2 notification behavior should be unchanged after migration");
 
     var created = Reaction.CreateDefault(
         commandWhitelist: configuration.DefaultCommandWhitelist,
@@ -79,7 +88,7 @@ Run("PuppetMaster_v2_legacy.json", configuration =>
 
 Run("PuppetMaster_v2_null_collections.json", configuration =>
 {
-    Assert(configuration.Version == 2, "null-collection fixture should stay v2");
+    Assert(configuration.Version == 3, "null-collection fixture should migrate to v3");
     Assert(configuration.EnabledChannels.Count == 0, "null enabled channels should normalize to an empty list");
     Assert(configuration.CustomChannels.Count == 0, "null custom channels should normalize to an empty list");
     Assert(configuration.Reactions.Count == 0, "null reactions should normalize to an empty list");
@@ -333,10 +342,15 @@ static void RunPluginUiLogicTests()
     reaction.CustomPhrase = "^hello$";
     reaction.CustomRx = new Regex("^hello$");
     reaction.ExecutionPolicy = ReactionExecutionPolicy.QueueLatestTrigger;
+    reaction.ProgressNotifications = ReactionNotificationSetting.Disabled;
+    reaction.SuppressedNotifications = ReactionNotificationSetting.Enabled;
     var copy = PluginUiLogic.CloneReaction(reaction);
     Assert(!copy.Enabled && copy.Name == "Morning Wave Copy", "duplicated reactions should start disabled with a copy name");
     Assert(copy.UseRegex && copy.CustomPhrase == reaction.CustomPhrase && copy.ExecutionPolicy == reaction.ExecutionPolicy,
         "duplicate should preserve editor behavior");
+    Assert(copy.ProgressNotifications == ReactionNotificationSetting.Disabled &&
+           copy.SuppressedNotifications == ReactionNotificationSetting.Enabled,
+        "duplicate should preserve notification overrides");
     copy.EnabledChannels.Add(99);
     copy.CommandWhitelist.Add("/wait");
     Assert(!reaction.EnabledChannels.Contains(99) && !reaction.CommandWhitelist.Contains("/wait"),
@@ -383,6 +397,11 @@ static void RunPluginUiLogicTests()
     configuration.ShowSuppressedReactionNotifications = true;
     Assert(!configuration.ShowReactionNotifications && configuration.ShowSuppressedReactionNotifications,
         "notification UI settings should remain independent");
+    Assert(!PluginUiLogic.ResolveNotificationSetting(ReactionNotificationSetting.Inherit, false) &&
+           PluginUiLogic.ResolveNotificationSetting(ReactionNotificationSetting.Inherit, true) &&
+           PluginUiLogic.ResolveNotificationSetting(ReactionNotificationSetting.Enabled, false) &&
+           !PluginUiLogic.ResolveNotificationSetting(ReactionNotificationSetting.Disabled, true),
+        "per-reaction notification overrides should resolve independently from global defaults");
 
     Console.WriteLine("PASS plugin UI logic");
 }

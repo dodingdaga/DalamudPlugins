@@ -24,6 +24,7 @@ public static class ConfigurationMigrator
             {
                 0 => MigrateV0ToV1(configuration),
                 1 => MigrateV1ToV2(configuration),
+                2 => MigrateV2ToV3(configuration),
                 _ => throw new InvalidOperationException(
                     $"No migration path exists from configuration v{configuration.Version}."),
             };
@@ -74,6 +75,18 @@ public static class ConfigurationMigrator
         configuration.DefaultMotionOnly = true;
         configuration.DefaultEnabledChannels = [];
         configuration.Version = 2;
+        return true;
+    }
+
+    private static bool MigrateV2ToV3(Configuration configuration)
+    {
+        configuration.Reactions ??= [];
+        foreach (var reaction in configuration.Reactions)
+        {
+            reaction.ProgressNotifications = ReactionNotificationSetting.Inherit;
+            reaction.SuppressedNotifications = ReactionNotificationSetting.Inherit;
+        }
+        configuration.Version = 3;
         return true;
     }
 
@@ -136,6 +149,16 @@ public static class ConfigurationMigrator
             if (!Enum.IsDefined(reaction.ExecutionPolicy))
             {
                 reaction.ExecutionPolicy = ReactionExecutionPolicy.QueueEveryTrigger;
+                changed = true;
+            }
+            if (!Enum.IsDefined(reaction.ProgressNotifications))
+            {
+                reaction.ProgressNotifications = ReactionNotificationSetting.Inherit;
+                changed = true;
+            }
+            if (!Enum.IsDefined(reaction.SuppressedNotifications))
+            {
+                reaction.SuppressedNotifications = ReactionNotificationSetting.Inherit;
                 changed = true;
             }
         }

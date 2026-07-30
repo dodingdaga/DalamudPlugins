@@ -14,9 +14,16 @@ namespace PuppetMaster
         QueueLatestTrigger,
     }
 
+    public enum ReactionNotificationSetting
+    {
+        Inherit,
+        Enabled,
+        Disabled,
+    }
+
     public class ConfigVersion
     {
-        public const int CURRENT = 2;
+        public const int CURRENT = 3;
     }
 
     public class ChannelSetting
@@ -38,6 +45,8 @@ namespace PuppetMaster
         public int CooldownSeconds { get; set; } = 0;
         // QueueEveryTrigger preserves the behavior of configurations created before execution policies existed.
         public ReactionExecutionPolicy ExecutionPolicy { get; set; } = ReactionExecutionPolicy.QueueEveryTrigger;
+        public ReactionNotificationSetting ProgressNotifications { get; set; } = ReactionNotificationSetting.Inherit;
+        public ReactionNotificationSetting SuppressedNotifications { get; set; } = ReactionNotificationSetting.Inherit;
         // Legacy v1 field. Retained for config compatibility; command execution no longer uses it.
         public bool AllowAllCommands { get; set; } = false;
         public bool UseRegex { get; set; } = false;
