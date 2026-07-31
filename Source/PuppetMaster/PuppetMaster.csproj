@@ -11,6 +11,7 @@
 
   <PropertyGroup>
     <Platforms>x64</Platforms>
+    <OutputPath>bin\x64\$(Configuration)\</OutputPath>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

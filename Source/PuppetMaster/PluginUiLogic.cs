@@ -16,8 +16,62 @@ internal enum ReactionUiStatus
 
 internal static class PluginUiLogic
 {
+    internal readonly record struct ThreeColumnLayout(float ListWidth, float EditorWidth, float OptionsWidth)
+    {
+        public float TotalWidth(float spacing) => ListWidth + EditorWidth + OptionsWidth + (spacing * 2);
+    }
+
+    public static readonly string[] ReactionWorkspaceSectionLabels =
+        ["Trigger", "Preview"];
+
+    public static readonly string[] ReactionBehaviorSectionLabels =
+        ["Commands", "Repeat & notifications"];
+
+    public static readonly string[] NotificationSettingLabels =
+        ["Default", "Show", "Hide"];
+
+    public static readonly string[] ChannelCategoryLabels =
+        ["Common", "CWLS", "Linkshells", "System", "Combat", "Activities", "Social", "GM", "Other", "Custom"];
+
+    public static readonly string[] AdditionalChannelCategoryLabels =
+        ["System", "Combat", "Activities", "Social", "GM", "Other"];
+
+    public static string GetAdvancedChannelCategory(string channelName)
+    {
+        if (channelName.StartsWith("Gm", StringComparison.Ordinal))
+            return "GM";
+
+        if (channelName is "Damage" or "Miss" or "Action" or "Item" or "Healing" or
+            "GainBuff" or "GainDebuff" or "LoseBuff" or "LoseDebuff")
+            return "Combat";
+
+        if (channelName is "GlamourNotifications" or "LootNotice" or "Progress" or "LootRoll" or
+            "Crafting" or "Gathering" or "RetainerSale" or "Orchestrion" or "Sign" or "RandomNumber")
+            return "Activities";
+
+        if (channelName is "NPCDialogue" or "NPCDialogueAnnouncements" or "FreeCompanyAnnouncement" or
+            "FreeCompanyLoginLogout" or "PeriodicRecruitmentNotification" or "PvpTeamAnnouncement" or
+            "PvpTeamLoginLogout" or "MessageBook" or "CustomEmote" or "StandardEmote")
+            return "Social";
+
+        if (channelName is "Debug" or "Urgent" or "Notice" or "Alarm" or "Echo" or
+            "SystemMessage" or "SystemError" or "GatheringSystemMessage" or "ErrorMessage" or
+            "NoviceNetworkSystem")
+            return "System";
+
+        return "Other";
+    }
+
+    public static readonly (ReactionExecutionPolicy Policy, string Label)[] ExecutionPolicyOptions =
+    [
+        (ReactionExecutionPolicy.IgnoreWhileRunning, "Ignore"),
+        (ReactionExecutionPolicy.QueueEveryTrigger, "Queue every trigger"),
+        (ReactionExecutionPolicy.QueueLatestTrigger, "Queue latest trigger"),
+        (ReactionExecutionPolicy.RestartImmediately, "Restart immediately"),
+    ];
+
     public static readonly string[] ExecutionPolicyLabels =
-        ["Queue every trigger", "Ignore", "Queue latest trigger", "Restart immediately"];
+        ExecutionPolicyOptions.Select(option => option.Label).ToArray();
 
     public static Dictionary<string, List<int>> GroupReactionIndexes(IReadOnlyList<Reaction> reactions)
     {
@@ -34,15 +88,101 @@ internal static class PluginUiLogic
         return groups;
     }
 
-    public static List<int> FilterReactionIndexes(IReadOnlyList<Reaction> reactions, string search)
+    public static int EnsureReactionSelection(Configuration configuration, int preferredIndex)
     {
-        var indexes = new List<int>();
-        for (var index = 0; index < reactions.Count; index++)
+        if (configuration.Reactions.Count == 0)
         {
-            if (MatchesSearch(reactions[index], search))
-                indexes.Add(index);
+            configuration.Reactions.Add(Reaction.CreateDefault(
+                commandWhitelist: configuration.DefaultCommandWhitelist,
+                commandBlacklist: configuration.DefaultCommandBlacklist,
+                allowAllCommands: configuration.DefaultAllowAllCommands,
+                motionOnly: configuration.DefaultMotionOnly,
+                enabledChannels: configuration.DefaultEnabledChannels));
         }
-        return indexes;
+
+        return Math.Clamp(preferredIndex, 0, configuration.Reactions.Count - 1);
+    }
+
+    public static ThreeColumnLayout CalculateThreeColumnLayout(
+        float availableWidth,
+        float spacing,
+        float listWidth = 260,
+        float optionsWidth = 310,
+        float minimumEditorWidth = 400)
+    {
+        availableWidth = Math.Max(0, availableWidth);
+        spacing = Math.Max(0, spacing);
+        listWidth = Math.Max(0, listWidth);
+        optionsWidth = Math.Max(0, optionsWidth);
+        minimumEditorWidth = Math.Max(0, minimumEditorWidth);
+        var editorWidth = Math.Max(
+            minimumEditorWidth,
+            availableWidth - listWidth - optionsWidth - (spacing * 2));
+        return new ThreeColumnLayout(listWidth, editorWidth, optionsWidth);
+    }
+
+    public static float[] CalculateButtonWidths(
+        float availableWidth,
+        float spacing,
+        IReadOnlyList<float> naturalWidths)
+    {
+        if (naturalWidths.Count == 0)
+            return [];
+
+        availableWidth = Math.Max(0, availableWidth);
+        spacing = Math.Max(0, spacing);
+        var usableWidth = Math.Max(0, availableWidth - (spacing * (naturalWidths.Count - 1)));
+        var widths = naturalWidths.Select(width => Math.Max(0, width)).ToArray();
+        var naturalTotal = widths.Sum();
+        if (naturalTotal <= 0)
+            return Enumerable.Repeat(usableWidth / widths.Length, widths.Length).ToArray();
+        if (naturalTotal <= usableWidth)
+        {
+            var extra = (usableWidth - naturalTotal) / widths.Length;
+            for (var index = 0; index < widths.Length; index++)
+                widths[index] += extra;
+        }
+        else
+        {
+            var scale = usableWidth / naturalTotal;
+            for (var index = 0; index < widths.Length; index++)
+                widths[index] *= scale;
+        }
+        return widths;
+    }
+
+    public static float CalculateChannelWindowMinimumWidth(
+        float railWidth,
+        float contentWidth,
+        float spacing,
+        float horizontalPadding)
+    {
+        return Math.Max(0, railWidth) + Math.Max(0, contentWidth) + Math.Max(0, spacing) +
+               (Math.Max(0, horizontalPadding) * 2);
+    }
+
+    public static float CalculateWrappedPanelHeight(
+        float measuredTextHeight,
+        float verticalPadding,
+        float itemSpacing,
+        float frameHeight,
+        int buttonRows = 1)
+    {
+        return Math.Max(0, measuredTextHeight) +
+               (Math.Max(0, verticalPadding) * 2) +
+               Math.Max(0, itemSpacing) +
+               (Math.Max(0, frameHeight) * Math.Max(0, buttonRows));
+    }
+
+    public static float CalculateLogActionWidth(
+        float frameHeight,
+        float spacing,
+        float horizontalCellPadding,
+        bool hasSecondaryAction)
+    {
+        return Math.Max(0, frameHeight) +
+               (hasSecondaryAction ? Math.Max(0, frameHeight) + Math.Max(0, spacing) : 0) +
+               (Math.Max(0, horizontalCellPadding) * 2);
     }
 
     public static bool MatchesSearch(Reaction reaction, string search)
@@ -50,8 +190,8 @@ internal static class PluginUiLogic
         if (string.IsNullOrWhiteSpace(search))
             return true;
         var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
-        return reaction.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-               trigger.Contains(search, StringComparison.OrdinalIgnoreCase);
+        return (reaction.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (trigger?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     public static ReactionUiStatus GetStatus(Reaction reaction)
@@ -62,7 +202,7 @@ internal static class PluginUiLogic
         var trigger = reaction.UseRegex ? reaction.CustomPhrase : reaction.TriggerPhrase;
         if (string.IsNullOrWhiteSpace(trigger) || pattern == null)
             return ReactionUiStatus.InvalidTrigger;
-        if (reaction.EnabledChannels.Count == 0)
+        if (reaction.EnabledChannels == null || reaction.EnabledChannels.Count == 0)
             return ReactionUiStatus.NoChannels;
         if (reaction.AllowAllCommands)
             return ReactionUiStatus.Unsafe;
@@ -72,6 +212,12 @@ internal static class PluginUiLogic
     public static void SetRegexMode(Reaction reaction, bool useRegex)
     {
         reaction.UseRegex = useRegex;
+    }
+
+    public static void EnsureRegexRestoreTrigger(Reaction reaction)
+    {
+        if (string.IsNullOrWhiteSpace(reaction.TriggerPhrase))
+            reaction.TriggerPhrase = Reaction.DefaultTriggerPhrase;
     }
 
     public static int ClampCooldown(int seconds)
@@ -93,18 +239,18 @@ internal static class PluginUiLogic
     {
         return policy switch
         {
-            ReactionExecutionPolicy.QueueEveryTrigger => "Queues every trigger while running or waiting on queued work (maximum 16 pending).",
-            ReactionExecutionPolicy.QueueLatestTrigger => "Keeps only the newest trigger while running or waiting on queued work.",
-            ReactionExecutionPolicy.RestartImmediately => "Cancels the current run and starts the newest trigger as soon as cancellation completes.",
-            _ => "Discards triggers received while the reaction is running or has queued work.",
+            ReactionExecutionPolicy.QueueEveryTrigger => "Runs every request afterward (up to 16 waiting).",
+            ReactionExecutionPolicy.QueueLatestTrigger => "Keeps only the newest request.",
+            ReactionExecutionPolicy.RestartImmediately => "Stops the remaining steps and reacts again immediately.",
+            _ => "Ignores the new message while this reaction is busy.",
         };
     }
 
     public static string GetCooldownDescription(ReactionExecutionPolicy policy)
     {
         return IgnoresCooldown(policy)
-            ? "Cooldown is saved but ignored because Restart immediately runs on every trigger."
-            : "Start-to-start delay. Only one instance of this reaction can run at a time.";
+            ? "Cooldown does not apply with Restart immediately."
+            : "Minimum time between starts. The current run must also finish first.";
     }
 
     public static void SetReactionEnabled(Reaction reaction, bool enabled, Action<Reaction>? cancel = null)
@@ -252,5 +398,15 @@ internal static class PluginUiLogic
         if (customChannels.Any(candidate => !ReferenceEquals(candidate, channel) && candidate.ChatType == channelId))
             return "Another custom channel already uses this ID.";
         return null;
+    }
+
+    public static bool ShouldShowCustomChannel(
+        ChannelSetting channel,
+        Func<int, bool> isOfficial,
+        Func<int, string?> getOfficialName)
+    {
+        if (!isOfficial(channel.ChatType))
+            return true;
+        return !channel.Name.Equals(getOfficialName(channel.ChatType), StringComparison.Ordinal);
     }
 }

@@ -37,9 +37,11 @@ namespace PuppetMaster
 
     public class Reaction
     {
+        public const string DefaultTriggerPhrase = "please do";
+
         public bool Enabled { get; set; } = false;
         public string Name { get; set; } = string.Empty;
-        public string TriggerPhrase { get; set; } = string.Empty;
+        public string TriggerPhrase { get; set; } = DefaultTriggerPhrase;
         // Legacy field. False is normalized into default blacklist entries on load.
         public bool AllowSit { get; set; } = true;
         public bool MotionOnly { get; set; } = true;

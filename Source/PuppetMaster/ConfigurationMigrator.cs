@@ -111,9 +111,21 @@ public static class ConfigurationMigrator
         changed |= RemoveNullEntries(configuration.EnabledChannels);
         changed |= RemoveNullEntries(configuration.CustomChannels);
         changed |= RemoveNullEntries(configuration.Reactions);
-        configuration.DefaultCommandWhitelist ??= [];
-        configuration.DefaultCommandBlacklist ??= [.. LegacySitCommands];
-        configuration.DefaultEnabledChannels ??= [];
+        if (configuration.DefaultCommandWhitelist == null)
+        {
+            configuration.DefaultCommandWhitelist = [];
+            changed = true;
+        }
+        if (configuration.DefaultCommandBlacklist == null)
+        {
+            configuration.DefaultCommandBlacklist = [.. LegacySitCommands];
+            changed = true;
+        }
+        if (configuration.DefaultEnabledChannels == null)
+        {
+            configuration.DefaultEnabledChannels = [];
+            changed = true;
+        }
         changed |= NormalizeCustomChannels(configuration.CustomChannels);
         changed |= DeduplicateCommands(configuration.DefaultCommandWhitelist);
         changed |= DeduplicateCommands(configuration.DefaultCommandBlacklist);
@@ -121,8 +133,18 @@ public static class ConfigurationMigrator
 
         foreach (var reaction in configuration.Reactions)
         {
-            reaction.CommandWhitelist ??= [];
-            reaction.CommandBlacklist ??= [];
+            if (reaction.Name == null) { reaction.Name = string.Empty; changed = true; }
+            if (reaction.TriggerPhrase == null) { reaction.TriggerPhrase = Reaction.DefaultTriggerPhrase; changed = true; }
+            if (reaction.CustomPhrase == null) { reaction.CustomPhrase = string.Empty; changed = true; }
+            if (reaction.ReplaceMatch == null) { reaction.ReplaceMatch = string.Empty; changed = true; }
+            if (reaction.TestInput == null) { reaction.TestInput = string.Empty; changed = true; }
+            if (reaction.EnabledChannels == null) { reaction.EnabledChannels = []; changed = true; }
+            if (reaction.CommandWhitelist == null) { reaction.CommandWhitelist = []; changed = true; }
+            if (reaction.CommandBlacklist == null) { reaction.CommandBlacklist = []; changed = true; }
+
+            changed |= DeduplicateChannels(reaction.EnabledChannels);
+            changed |= DeduplicateCommands(reaction.CommandWhitelist);
+            changed |= DeduplicateCommands(reaction.CommandBlacklist);
 
             if (!reaction.AllowSit)
             {
@@ -139,8 +161,6 @@ public static class ConfigurationMigrator
                 changed = true;
             }
 
-            changed |= DeduplicateCommands(reaction.CommandWhitelist);
-            changed |= DeduplicateCommands(reaction.CommandBlacklist);
             if (reaction.CooldownSeconds < 0)
             {
                 reaction.CooldownSeconds = 0;
@@ -204,25 +224,33 @@ public static class ConfigurationMigrator
 
     private static bool ContainsCommand(List<string> commands, string command)
     {
-        return commands.Exists(item => item.Equals(command, StringComparison.OrdinalIgnoreCase));
+        return commands.Exists(item => string.Equals(item, command, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool NormalizeCustomChannels(List<ChannelSetting> channels)
     {
         var seen = new HashSet<int>();
         var writeIndex = 0;
+        var changed = false;
         for (var readIndex = 0; readIndex < channels.Count; readIndex++)
         {
             var channel = channels[readIndex];
             if (channel.ChatType < ushort.MinValue || channel.ChatType > ushort.MaxValue ||
                 !seen.Add(channel.ChatType))
+            {
+                changed = true;
                 continue;
-            channel.Name ??= string.Empty;
+            }
+            if (channel.Name == null)
+            {
+                channel.Name = string.Empty;
+                changed = true;
+            }
             channels[writeIndex++] = channel;
         }
 
         if (writeIndex == channels.Count)
-            return false;
+            return changed;
         channels.RemoveRange(writeIndex, channels.Count - writeIndex);
         return true;
     }
