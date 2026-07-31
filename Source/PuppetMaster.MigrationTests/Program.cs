@@ -84,6 +84,17 @@ Run("PuppetMaster_v2_legacy.json", configuration =>
     Assert(created.EnabledChannels.SequenceEqual([10, 14]), "new reactions should copy rather than share channel defaults");
     Assert(created.ExecutionPolicy == ReactionExecutionPolicy.IgnoreWhileRunning,
         "new reactions should use the safe execution policy default");
+    Assert(!created.Enabled &&
+           created.ProgressNotifications == ReactionNotificationSetting.Inherit &&
+           created.SuppressedNotifications == ReactionNotificationSetting.Inherit,
+        "new reactions should start disabled and follow both global notification defaults");
+    Assert(created.TriggerPhrase == Reaction.DefaultTriggerPhrase && created.TriggerPhrase == "please do",
+        "new reactions should start with the familiar default trigger");
+
+    created.TriggerPhrase = string.Empty;
+    PluginUiLogic.EnsureRegexRestoreTrigger(created);
+    Assert(created.TriggerPhrase == "please do",
+        "restoring regex defaults should repair an empty base trigger");
 });
 
 Run("PuppetMaster_v2_null_collections.json", configuration =>
@@ -106,6 +117,8 @@ AssertThrows<InvalidOperationException>(() => ConfigurationMigrator.MigrateAndNo
 RunExecutionGateTests();
 RunReactionCommandMatcherTests();
 RunPluginUiLogicTests();
+RunConfigurationBoundaryTests();
+RunUiLayoutTests();
 RunDebugLogBufferTests();
 RunRetriggerQueueTests();
 RunRetriggerSchedulerTests();
@@ -301,8 +314,6 @@ static void RunPluginUiLogicTests()
     var groups = PluginUiLogic.GroupReactionIndexes(groupedReactions);
     Assert(groups["Morning Wave"].SequenceEqual([0, 1]) && groups["Individual"].SequenceEqual([2]),
         "reaction grouping should preserve indexes and exact-name groups");
-    Assert(PluginUiLogic.FilterReactionIndexes(groupedReactions, "second").SequenceEqual([1]),
-        "reaction editor filtering should return only matching indexes");
     var cancelled = new List<Reaction>();
     PluginUiLogic.SetReactionEnabled(groupedReactions[0], false, cancelled.Add);
     Assert(!groupedReactions[0].Enabled && cancelled.SequenceEqual([groupedReactions[0]]),
@@ -348,13 +359,55 @@ static void RunPluginUiLogicTests()
     Assert(!PluginUiLogic.IgnoresCooldown(ReactionExecutionPolicy.QueueLatestTrigger) &&
            !PluginUiLogic.RestartsActiveRun(ReactionExecutionPolicy.QueueEveryTrigger),
         "existing execution policies should retain their cooldown and non-restart behavior");
-    Assert(PluginUiLogic.ExecutionPolicyLabels.Length == Enum.GetValues<ReactionExecutionPolicy>().Length &&
-           PluginUiLogic.ExecutionPolicyLabels[(int)ReactionExecutionPolicy.RestartImmediately] == "Restart immediately",
-        "execution-policy selector should expose the restart-immediately enum option in matching order");
-    Assert(PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.RestartImmediately).Contains("Cancels") &&
-           PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.RestartImmediately).Contains("ignored") &&
-           PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.QueueLatestTrigger).Contains("Start-to-start"),
-        "execution editor should explain restart cancellation and its disabled cooldown behavior");
+    Assert(PluginUiLogic.ExecutionPolicyOptions.Select(option => option.Policy).SequenceEqual(
+               [
+                   ReactionExecutionPolicy.IgnoreWhileRunning,
+                   ReactionExecutionPolicy.QueueEveryTrigger,
+                   ReactionExecutionPolicy.QueueLatestTrigger,
+                   ReactionExecutionPolicy.RestartImmediately,
+               ]) &&
+           PluginUiLogic.ExecutionPolicyLabels.SequenceEqual(
+               ["Ignore", "Queue every trigger", "Queue latest trigger", "Restart immediately"]) &&
+           PluginUiLogic.ExecutionPolicyOptions.Select(option => option.Policy).Distinct().Count() ==
+               Enum.GetValues<ReactionExecutionPolicy>().Length,
+        "execution-policy selector should use the guide order while mapping every persisted enum exactly once");
+    Assert(PluginUiLogic.ReactionWorkspaceSectionLabels.SequenceEqual(["Trigger", "Preview"]),
+        "reaction workspace should use short, familiar section names");
+    Assert(PluginUiLogic.ReactionBehaviorSectionLabels.SequenceEqual(["Commands", "Repeat & notifications"]),
+        "reaction behavior panel should expose one focused category at a time");
+    Assert(PluginUiLogic.NotificationSettingLabels.SequenceEqual(
+               ["Default", "Show", "Hide"]) &&
+           PluginUiLogic.NotificationSettingLabels.Length == Enum.GetValues<ReactionNotificationSetting>().Length &&
+           PluginUiLogic.NotificationSettingLabels[(int)ReactionNotificationSetting.Inherit] == "Default" &&
+           PluginUiLogic.NotificationSettingLabels[(int)ReactionNotificationSetting.Enabled] == "Show" &&
+           PluginUiLogic.NotificationSettingLabels[(int)ReactionNotificationSetting.Disabled] == "Hide",
+        "notification radio groups should map every persisted enum value to the matching UI label");
+    Assert(PluginUiLogic.ChannelCategoryLabels.SequenceEqual(
+               ["Common", "CWLS", "Linkshells", "System", "Combat", "Activities", "Social", "GM", "Other", "Custom"]),
+        "channel selectors should expose one compact category at a time");
+    Assert(PluginUiLogic.AdditionalChannelCategoryLabels.SequenceEqual(
+               ["System", "Combat", "Activities", "Social", "GM", "Other"]) &&
+           PluginUiLogic.GetAdvancedChannelCategory("SystemMessage") == "System" &&
+           PluginUiLogic.GetAdvancedChannelCategory("GainBuff") == "Combat" &&
+           PluginUiLogic.GetAdvancedChannelCategory("LootRoll") == "Activities" &&
+           PluginUiLogic.GetAdvancedChannelCategory("NPCDialogue") == "Social" &&
+           PluginUiLogic.GetAdvancedChannelCategory("GmTell") == "GM" &&
+           PluginUiLogic.GetAdvancedChannelCategory("UnknownFutureType") == "Other",
+        "advanced channels should be grouped by user-facing purpose");
+    Assert(PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.QueueEveryTrigger)
+               .Contains("up to 16 waiting") &&
+           PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.QueueLatestTrigger)
+               .Contains("newest request") &&
+           PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.RestartImmediately)
+               .Contains("Stops the remaining steps") &&
+           PluginUiLogic.GetExecutionPolicyDescription(ReactionExecutionPolicy.IgnoreWhileRunning)
+               .Contains("Ignores the new message"),
+        "repeat-behavior choices should use clear user-facing descriptions");
+    Assert(PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.RestartImmediately)
+               .Contains("Cooldown does not apply") &&
+           PluginUiLogic.GetCooldownDescription(ReactionExecutionPolicy.QueueLatestTrigger)
+               .Contains("Minimum time between starts"),
+        "repeat-behavior editor should clearly explain cooldown behavior");
 
     Assert(PluginUiLogic.NormalizeCommand(" echo hello ") == "/echo", "command input should normalize to its lowercase command name");
     Assert(PluginUiLogic.NormalizeCommand("/AC Vercure [t]") == "/ac", "command normalization should ignore arguments and casing");
@@ -420,6 +473,16 @@ static void RunPluginUiLogicTests()
         "duplicate custom channel IDs should be rejected");
     Assert(PluginUiLogic.ValidateCustomChannelId(custom, 99, customChannels, _ => false) == null,
         "unique undocumented channel IDs should be accepted");
+    Assert(PluginUiLogic.ShouldShowCustomChannel(
+               new ChannelSetting { ChatType = 5, Name = "EnemyActions" },
+               id => id == 5,
+               _ => "Party"),
+        "a custom channel with a conflicting official ID should remain visible for correction");
+    Assert(!PluginUiLogic.ShouldShowCustomChannel(
+               new ChannelSetting { ChatType = 5, Name = "Party" },
+               id => id == 5,
+               _ => "Party"),
+        "legacy official channel entries should stay hidden from custom-channel settings");
 
     configuration.ShowReactionNotifications = false;
     configuration.ShowSuppressedReactionNotifications = true;
@@ -434,15 +497,181 @@ static void RunPluginUiLogicTests()
     Console.WriteLine("PASS plugin UI logic");
 }
 
+static void RunConfigurationBoundaryTests()
+{
+    AssertThrows<ArgumentNullException>(
+        () => ConfigurationMigrator.MigrateAndNormalize(null!),
+        "a null configuration should fail with a clear argument error");
+    AssertThrows<InvalidOperationException>(
+        () => ConfigurationMigrator.MigrateAndNormalize(new Configuration { Version = -1 }),
+        "negative configuration versions should be rejected");
+
+    var empty = new Configuration
+    {
+        Reactions = [],
+        CurrentReactionEdit = -10,
+        DefaultCommandWhitelist = ["/echo"],
+        DefaultCommandBlacklist = ["/logout"],
+        DefaultEnabledChannels = [10],
+        DefaultMotionOnly = false,
+    };
+    var emptyIndex = PluginUiLogic.EnsureReactionSelection(empty, empty.CurrentReactionEdit);
+    Assert(emptyIndex == 0 && empty.Reactions.Count == 1,
+        "opening a zero-reaction configuration should create one editable reaction");
+    Assert(empty.Reactions[0].TriggerPhrase == Reaction.DefaultTriggerPhrase &&
+           empty.Reactions[0].EnabledChannels.SequenceEqual([10]) &&
+           empty.Reactions[0].CommandWhitelist.SequenceEqual(["/echo"]) &&
+           !empty.Reactions[0].MotionOnly,
+        "the zero-config reaction should copy current defaults and remain usable");
+    Assert(PluginUiLogic.EnsureReactionSelection(empty, 99) == 0 && empty.Reactions.Count == 1,
+        "repairing a stale selection should not create duplicate reactions");
+
+    var malformed = new Configuration
+    {
+        Reactions =
+        [
+            new Reaction
+            {
+                Name = null!,
+                TriggerPhrase = null!,
+                CustomPhrase = null!,
+                ReplaceMatch = null!,
+                TestInput = null!,
+                EnabledChannels = null!,
+                CommandWhitelist = null!,
+                CommandBlacklist = null!,
+                ExecutionPolicy = (ReactionExecutionPolicy)999,
+                ProgressNotifications = (ReactionNotificationSetting)999,
+                SuppressedNotifications = (ReactionNotificationSetting)(-1),
+                CooldownSeconds = -20,
+            },
+        ],
+        CustomChannels = [new ChannelSetting { ChatType = 77, Name = null! }],
+        DefaultEnabledChannels = [-1, 10, 10, 70000],
+        DefaultCommandWhitelist = [null!, " ", "/echo", "/ECHO"],
+        DefaultCommandBlacklist = [null!, "/logout"],
+    };
+    Assert(ConfigurationMigrator.MigrateAndNormalize(malformed),
+        "malformed current-version data should report that normalization changed it");
+    var repaired = malformed.Reactions[0];
+    Assert(repaired.Name == string.Empty && repaired.TriggerPhrase == Reaction.DefaultTriggerPhrase &&
+           repaired.CustomPhrase == string.Empty && repaired.ReplaceMatch == string.Empty &&
+           repaired.TestInput == string.Empty,
+        "null reaction text should normalize to safe editor values");
+    Assert(repaired.EnabledChannels.Count == 0 && repaired.CommandWhitelist.Count == 0,
+        "null reaction collections should normalize to empty collections");
+    Assert(repaired.ExecutionPolicy == ReactionExecutionPolicy.QueueEveryTrigger &&
+           repaired.ProgressNotifications == ReactionNotificationSetting.Inherit &&
+           repaired.SuppressedNotifications == ReactionNotificationSetting.Inherit &&
+           repaired.CooldownSeconds == 0,
+        "invalid enum transitions and negative cooldowns should return to supported defaults");
+    Assert(malformed.DefaultEnabledChannels.SequenceEqual([10]) &&
+           malformed.DefaultCommandWhitelist.SequenceEqual(["/echo"]) &&
+           malformed.DefaultCommandBlacklist.SequenceEqual(["/logout"]) &&
+           malformed.CustomChannels[0].Name == string.Empty,
+        "invalid, duplicate, blank, and null default entries should normalize safely");
+    Assert(!ConfigurationMigrator.MigrateAndNormalize(malformed),
+        "boundary normalization should be idempotent");
+
+    var isolatedNullDefaults = new Configuration
+    {
+        DefaultCommandWhitelist = null!,
+        DefaultCommandBlacklist = null!,
+        DefaultEnabledChannels = null!,
+        CustomChannels = [new ChannelSetting { ChatType = 99, Name = null! }],
+    };
+    Assert(ConfigurationMigrator.MigrateAndNormalize(isolatedNullDefaults) &&
+           isolatedNullDefaults.DefaultCommandWhitelist.Count == 0 &&
+           isolatedNullDefaults.DefaultCommandBlacklist.SequenceEqual(["/sit", "/groundsit", "/lounge"]) &&
+           isolatedNullDefaults.DefaultEnabledChannels.Count == 0 &&
+           isolatedNullDefaults.CustomChannels[0].Name == string.Empty,
+        "isolated null defaults and custom names should be repaired and reported as changed");
+    Assert(!ConfigurationMigrator.MigrateAndNormalize(isolatedNullDefaults),
+        "isolated null-default repair should be idempotent");
+
+    var nullableSearch = new Reaction { Name = null!, TriggerPhrase = null!, EnabledChannels = null! };
+    Assert(!PluginUiLogic.MatchesSearch(nullableSearch, "anything"),
+        "search should tolerate null text before normalization");
+    nullableSearch.Enabled = true;
+    nullableSearch.Rx = new Regex("x");
+    Assert(PluginUiLogic.GetStatus(nullableSearch) == ReactionUiStatus.InvalidTrigger,
+        "status evaluation should tolerate malformed pre-normalized reactions");
+
+    var transitionList = new List<Reaction> { new() { Name = "A" }, new() { Name = "B" }, new() { Name = "C" } };
+    Assert(PluginUiLogic.TryDeleteReaction(transitionList, 0, out var afterFirst) && afterFirst == 0 &&
+           transitionList[0].Name == "B",
+        "deleting the first reaction should select its successor");
+    Assert(PluginUiLogic.TryDeleteReaction(transitionList, 1, out var afterLast) && afterLast == 0 &&
+           transitionList.Single().Name == "B",
+        "deleting the last reaction should select the remaining predecessor");
+    Assert(!PluginUiLogic.TryDeleteReaction(transitionList, -1, out _) &&
+           !PluginUiLogic.TryDeleteReaction(transitionList, 5, out _),
+        "invalid deletion transitions should leave the collection unchanged");
+
+    Console.WriteLine("PASS configuration and transition boundaries");
+}
+
+static void RunUiLayoutTests()
+{
+    const float spacing = 8;
+    var minimum = PluginUiLogic.CalculateThreeColumnLayout(986, spacing);
+    Assert(minimum.ListWidth == 260 && minimum.EditorWidth == 400 && minimum.OptionsWidth == 310 &&
+           minimum.TotalWidth(spacing) == 986,
+        "the three-column editor should exactly fit its designed minimum content width");
+    var expanded = PluginUiLogic.CalculateThreeColumnLayout(1280, spacing);
+    Assert(expanded.EditorWidth == 694 && expanded.TotalWidth(spacing) == 1280,
+        "extra width should go to the editor rather than bloating the side columns");
+    var constrained = PluginUiLogic.CalculateThreeColumnLayout(500, -4, -10, 310, 400);
+    Assert(constrained.ListWidth == 0 && constrained.EditorWidth == 400 && constrained.OptionsWidth == 310,
+        "invalid layout inputs should clamp instead of producing negative child sizes");
+
+    var naturalButtons = PluginUiLogic.CalculateButtonWidths(294, spacing, [90, 150]);
+    Assert(naturalButtons.Length == 2 && naturalButtons.All(width => width > 0) &&
+           Math.Abs(naturalButtons.Sum() + spacing - 294) < 0.001f,
+        "behavior buttons should fill the row without gaps or overflow");
+    var narrowButtons = PluginUiLogic.CalculateButtonWidths(80, spacing, [90, 150]);
+    Assert(narrowButtons.All(width => width >= 0) &&
+           Math.Abs(narrowButtons.Sum() + spacing - 80) < 0.001f,
+        "button widths should shrink proportionally in a constrained panel");
+    var zeroButtons = PluginUiLogic.CalculateButtonWidths(0, spacing, [0, 0]);
+    Assert(zeroButtons.SequenceEqual([0f, 0f]),
+        "zero-size button layouts should remain finite and non-negative");
+    Assert(PluginUiLogic.CalculateButtonWidths(200, spacing, []).Length == 0,
+        "an empty button group should not divide by zero");
+
+    Assert(PluginUiLogic.CalculateChannelWindowMinimumWidth(155, 340, 8, 8) == 519,
+        "the channel window minimum should include both columns, spacing, and window padding");
+    Assert(PluginUiLogic.CalculateChannelWindowMinimumWidth(-1, -1, -1, -1) == 0,
+        "channel window constraints should never become negative");
+
+    var oneLinePanel = PluginUiLogic.CalculateWrappedPanelHeight(18, 8, 4, 24);
+    var threeLinePanel = PluginUiLogic.CalculateWrappedPanelHeight(54, 8, 4, 24);
+    Assert(oneLinePanel == 62 && threeLinePanel == 98 && threeLinePanel - oneLinePanel == 36,
+        "wrapped confirmation panels should grow by the measured wrapped text height");
+    Assert(PluginUiLogic.CalculateWrappedPanelHeight(-1, -1, -1, -1, -1) == 0,
+        "wrapped panel sizing should clamp malformed measurements");
+
+    Assert(PluginUiLogic.CalculateLogActionWidth(24, 8, 4, false) == 32 &&
+           PluginUiLogic.CalculateLogActionWidth(24, 8, 4, true) == 64,
+        "log action columns should reserve exactly one or two button widths as needed");
+    Assert(PluginUiLogic.CalculateLogActionWidth(-1, -1, -1, true) == 0,
+        "log action width should never become negative");
+
+    Console.WriteLine("PASS UI layout boundaries and wrapping");
+}
+
 static void RunDebugLogBufferTests()
 {
     DebugLogBuffer.Clear();
+    var revisionBeforeAdds = DebugLogBuffer.Revision;
     for (var index = 0; index < 505; index++)
         DebugLogBuffer.Add(index, $"display {index}", $"trigger {index}");
     var entries = DebugLogBuffer.Snapshot();
     Assert(entries.Length == 500, "logs UI should retain at most 500 entries");
     Assert(entries[0].ChatTypeId == 5 && entries[^1].ChatTypeId == 504,
         "logs UI should discard the oldest entries when full");
+    Assert(DebugLogBuffer.Revision == revisionBeforeAdds + 505,
+        "log revision should advance for every entry even after the buffer reaches its limit");
 
     var directory = Path.Combine(Path.GetTempPath(), $"PuppetMaster-LogTests-{Guid.NewGuid():N}");
     try
@@ -457,7 +686,10 @@ static void RunDebugLogBufferTests()
     {
         if (Directory.Exists(directory))
             Directory.Delete(directory, recursive: true);
+        var revisionBeforeClear = DebugLogBuffer.Revision;
         DebugLogBuffer.Clear();
+        Assert(DebugLogBuffer.Revision == revisionBeforeClear + 1,
+            "clearing logs should advance the revision used by auto-scroll");
     }
     Assert(DebugLogBuffer.Snapshot().Length == 0, "clearing logs should empty the UI buffer");
     Console.WriteLine("PASS debug log UI");

@@ -14,6 +14,7 @@ namespace PuppetMaster
         public WindowSystem windowSystem = new("PuppetMaster");
         public ConfigWindow configWindow;
         internal ReactionVisualizerWindow visualizerWindow;
+        internal MessageLogWindow messageLogWindow;
 
         public Plugin(IDalamudPluginInterface pluginInterface)
         {
@@ -26,8 +27,10 @@ namespace PuppetMaster
 
             this.configWindow = new ConfigWindow();
             this.visualizerWindow = new ReactionVisualizerWindow();
+            this.messageLogWindow = new MessageLogWindow();
             windowSystem.AddWindow(configWindow);
             windowSystem.AddWindow(visualizerWindow);
+            windowSystem.AddWindow(messageLogWindow);
 
             // Handlers
             ChatHandler.Initialize();
@@ -152,6 +155,11 @@ namespace PuppetMaster
         internal void DrawVisualizerUI()
         {
             this.visualizerWindow.IsOpen = true;
+        }
+
+        internal void DrawLogsUI()
+        {
+            this.messageLogWindow.IsOpen = true;
         }
     }
 }

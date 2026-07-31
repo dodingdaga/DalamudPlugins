@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace PuppetMaster;
 
@@ -13,10 +14,14 @@ internal static class DebugLogBuffer
 {
     private const int MaximumEntries = 500;
     private static readonly ConcurrentQueue<DebugLogEntry> Entries = new();
+    private static long revision;
+
+    public static long Revision => Interlocked.Read(ref revision);
 
     public static void Add(int chatTypeId, string text, string triggerText)
     {
         Entries.Enqueue(new DebugLogEntry(chatTypeId, text, triggerText));
+        Interlocked.Increment(ref revision);
 
         while (Entries.Count > MaximumEntries)
             Entries.TryDequeue(out _);
@@ -32,6 +37,7 @@ internal static class DebugLogBuffer
         while (Entries.TryDequeue(out _))
         {
         }
+        Interlocked.Increment(ref revision);
     }
 
     public static string SaveSnapshot(string directory, DebugLogEntry[] entries)
